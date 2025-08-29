@@ -1,34 +1,44 @@
 import * as vscode from 'vscode';
 
 export class HighlightManager {
-    private decorationType: vscode.TextEditorDecorationType;
+    private selectionDecorationType: vscode.TextEditorDecorationType;
+    private explanationDecorationType: vscode.TextEditorDecorationType;
     private activeDecorations: Map<vscode.TextEditor, vscode.Range[]> = new Map();
 
     constructor() {
-        // Create decoration type for highlighting code
-        this.decorationType = vscode.window.createTextEditorDecorationType({
-            backgroundColor: new vscode.ThemeColor('editor.findMatchHighlightBackground'),
-            border: '2px solid',
-            borderColor: new vscode.ThemeColor('editorInfo.foreground'),
+        // Create decoration type for selection highlighting (blue)
+        this.selectionDecorationType = vscode.window.createTextEditorDecorationType({
+            backgroundColor: 'rgba(0, 120, 255, 0.2)', // Blue with transparency
+            border: '2px solid rgba(0, 120, 255, 0.6)', // Blue border
             borderRadius: '3px',
-            overviewRulerColor: new vscode.ThemeColor('editorInfo.foreground'),
+            overviewRulerColor: 'rgba(0, 120, 255, 0.6)',
+            overviewRulerLane: vscode.OverviewRulerLane.Right,
+            isWholeLine: false
+        });
+
+        // Create decoration type for explanation highlighting (light yellow, minimal border)
+        this.explanationDecorationType = vscode.window.createTextEditorDecorationType({
+            backgroundColor: 'rgba(255, 255, 0, 0.15)', // Light yellow with low transparency
+            border: '1px solid rgba(255, 255, 0, 0.3)', // Minimal yellow border
+            borderRadius: '2px',
+            overviewRulerColor: 'rgba(255, 255, 0, 0.4)',
             overviewRulerLane: vscode.OverviewRulerLane.Right,
             isWholeLine: false
         });
     }
 
     /**
-     * Highlight a specific range in the editor
+     * Highlight a specific range in the editor for selection (blue)
      */
-    highlightRange(editor: vscode.TextEditor, range: vscode.Range) {
+    highlightSelectionRange(editor: vscode.TextEditor, range: vscode.Range) {
         this.clearHighlights(editor);
         
         const decoration: vscode.DecorationOptions = {
             range: range,
-            hoverMessage: 'Code being explained with voice'
+            hoverMessage: 'Selected code for explanation'
         };
 
-        editor.setDecorations(this.decorationType, [decoration]);
+        editor.setDecorations(this.selectionDecorationType, [decoration]);
         this.activeDecorations.set(editor, [range]);
 
         // Scroll to the highlighted range
@@ -36,9 +46,54 @@ export class HighlightManager {
     }
 
     /**
-     * Highlight multiple ranges in the editor
+     * Highlight a specific range in the editor during explanation (light yellow)
      */
-    highlightRanges(editor: vscode.TextEditor, ranges: vscode.Range[]) {
+    highlightExplanationRange(editor: vscode.TextEditor, range: vscode.Range) {
+        this.clearHighlights(editor);
+        
+        const decoration: vscode.DecorationOptions = {
+            range: range,
+            hoverMessage: 'Code being explained with voice'
+        };
+
+        editor.setDecorations(this.explanationDecorationType, [decoration]);
+        this.activeDecorations.set(editor, [range]);
+
+        // Scroll to the highlighted range
+        editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+    }
+
+    /**
+     * Legacy method for backward compatibility - defaults to explanation highlighting
+     */
+    highlightRange(editor: vscode.TextEditor, range: vscode.Range) {
+        this.highlightExplanationRange(editor, range);
+    }
+
+    /**
+     * Highlight multiple ranges in the editor for selection (blue)
+     */
+    highlightSelectionRanges(editor: vscode.TextEditor, ranges: vscode.Range[]) {
+        this.clearHighlights(editor);
+        
+        const decorations: vscode.DecorationOptions[] = ranges.map(range => ({
+            range: range,
+            hoverMessage: 'Selected code for explanation'
+        }));
+
+        editor.setDecorations(this.selectionDecorationType, decorations);
+        this.activeDecorations.set(editor, ranges);
+
+        // Scroll to the first highlighted range
+        if (ranges.length > 0) {
+            editor.revealRange(ranges[0], vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+        }
+    }
+
+    /**
+     * Highlight multiple ranges in the editor during explanation (light yellow)
+     */
+    highlightExplanationRanges(editor: vscode.TextEditor, ranges: vscode.Range[]) {
         this.clearHighlights(editor);
         
         const decorations: vscode.DecorationOptions[] = ranges.map(range => ({
@@ -46,13 +101,20 @@ export class HighlightManager {
             hoverMessage: 'Code being explained with voice'
         }));
 
-        editor.setDecorations(this.decorationType, decorations);
+        editor.setDecorations(this.explanationDecorationType, decorations);
         this.activeDecorations.set(editor, ranges);
 
         // Scroll to the first highlighted range
         if (ranges.length > 0) {
             editor.revealRange(ranges[0], vscode.TextEditorRevealType.InCenterIfOutsideViewport);
         }
+    }
+
+    /**
+     * Legacy method for backward compatibility - defaults to explanation highlighting
+     */
+    highlightRanges(editor: vscode.TextEditor, ranges: vscode.Range[]) {
+        this.highlightExplanationRanges(editor, ranges);
     }
 
     /**
@@ -81,7 +143,8 @@ export class HighlightManager {
      * Clear all highlights from a specific editor
      */
     clearHighlights(editor: vscode.TextEditor) {
-        editor.setDecorations(this.decorationType, []);
+        editor.setDecorations(this.selectionDecorationType, []);
+        editor.setDecorations(this.explanationDecorationType, []);
         this.activeDecorations.delete(editor);
     }
 
@@ -142,6 +205,7 @@ export class HighlightManager {
      */
     dispose() {
         this.clearAllHighlights();
-        this.decorationType.dispose();
+        this.selectionDecorationType.dispose();
+        this.explanationDecorationType.dispose();
     }
 }

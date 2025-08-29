@@ -1,6 +1,18 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 
+export interface WordTiming {
+    word: string;
+    startMs: number;
+    endMs: number;
+}
+
+export interface SynthesisResult {
+    audioBuffer: Buffer;
+    wordTimings: WordTiming[];
+    audioLengthInSeconds: number;
+}
+
 export class VoiceSynthesizer {
     private apiKey: string = '';
     private voiceId: string = '';
@@ -24,21 +36,26 @@ export class VoiceSynthesizer {
     }
 
     async synthesizeSpeech(text: string): Promise<Buffer> {
+        const result = await this.synthesizeSpeechWithTiming(text);
+        return result.audioBuffer;
+    }
+
+    async synthesizeSpeechWithTiming(text: string): Promise<SynthesisResult> {
         // If Murf.ai API key is not configured, go straight to OpenAI TTS fallback
         if (!this.apiKey) {
             console.log('Murf.ai API key not configured, using OpenAI TTS fallback');
-            return await this.synthesizeWithFallback(text);
+            return await this.synthesizeWithFallbackTiming(text);
         }
 
         try {
             // Try Murf.ai API first
-            return await this.synthesizeWithMurfAI(text);
+            return await this.synthesizeWithMurfAITiming(text);
         } catch (error) {
             console.warn('Murf.ai API failed, trying fallback options:', error);
             
             // Fallback to other TTS options
             try {
-                return await this.synthesizeWithFallback(text);
+                return await this.synthesizeWithFallbackTiming(text);
             } catch (fallbackError) {
                 throw new Error(`Text-to-speech failed. Murf.ai error: ${error instanceof Error ? error.message : 'Unknown error'}. Fallback also failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
             }
@@ -46,6 +63,11 @@ export class VoiceSynthesizer {
     }
 
     private async synthesizeWithMurfAI(text: string): Promise<Buffer> {
+        const result = await this.synthesizeWithMurfAITiming(text);
+        return result.audioBuffer;
+    }
+
+    private async synthesizeWithMurfAITiming(text: string): Promise<SynthesisResult> {
         try {
             // Use the correct Murf.ai API format
             const response = await axios.post(
@@ -62,9 +84,22 @@ export class VoiceSynthesizer {
                 }
             );
 
-            // The API returns an audioFile URL that we can download
+            // The API returns an audioFile URL and timing data
             if (response.data.audioFile) {
-                return await this.downloadAudio(response.data.audioFile);
+                const audioBuffer = await this.downloadAudio(response.data.audioFile);
+                
+                // Extract word timings from Murf.ai response
+                const wordTimings: WordTiming[] = (response.data.wordDurations || []).map((word: any) => ({
+                    word: word.word || '',
+                    startMs: word.startMs || 0,
+                    endMs: word.endMs || 0
+                }));
+
+                return {
+                    audioBuffer,
+                    wordTimings,
+                    audioLengthInSeconds: response.data.audioLengthInSeconds || 0
+                };
             } else {
                 throw new Error('No audio file URL received from Murf.ai API');
             }
@@ -100,6 +135,11 @@ export class VoiceSynthesizer {
 
     // Fallback to OpenAI TTS API (more widely available)
     private async synthesizeWithFallback(text: string): Promise<Buffer> {
+        const result = await this.synthesizeWithFallbackTiming(text);
+        return result.audioBuffer;
+    }
+
+    private async synthesizeWithFallbackTiming(text: string): Promise<SynthesisResult> {
         // Try OpenAI TTS as fallback
         const config = vscode.workspace.getConfiguration('codeVoiceExplainer');
         const openaiApiKey = config.get<string>('openaiApiKey');
@@ -126,7 +166,22 @@ export class VoiceSynthesizer {
                 }
             );
 
-            return Buffer.from(response.data);
+            const audioBuffer = Buffer.from(response.data);
+            
+            // OpenAI doesn't provide word timings, so we estimate based on word count
+            const words = text.split(/\s+/);
+            const estimatedDurationSeconds = words.length * 0.5; // Rough estimate: 0.5 seconds per word
+            const wordTimings: WordTiming[] = words.map((word, index) => ({
+                word,
+                startMs: index * 500, // 500ms per word
+                endMs: (index + 1) * 500
+            }));
+
+            return {
+                audioBuffer,
+                wordTimings,
+                audioLengthInSeconds: estimatedDurationSeconds
+            };
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const statusCode = error.response?.status;

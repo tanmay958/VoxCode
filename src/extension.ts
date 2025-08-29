@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { CodeExplainer } from './services/codeExplainer';
-import { VoiceSynthesizer } from './services/voiceSynthesizer';
+import { CodeExplainer, MappedExplanation } from './services/codeExplainer';
+import { VoiceSynthesizer, SynthesisResult } from './services/voiceSynthesizer';
 import { HighlightManager } from './utils/highlightManager';
 import { WebviewManager } from './webview/webviewManager';
+import { CodeIndexer } from './utils/codeIndexer';
 
 let codeExplainer: CodeExplainer;
 let voiceSynthesizer: VoiceSynthesizer;
@@ -76,7 +77,7 @@ async function explainSelectedCode() {
     const language = editor.document.languageId;
 
     // Highlight the selected code
-    highlightManager.highlightRange(editor, selection);
+    highlightManager.highlightSelectionRange(editor, selection);
 
     await processCodeExplanation(selectedText, fileName, language, editor, selection);
 }
@@ -119,32 +120,52 @@ async function processCodeExplanation(
             cancellable: true
         }, async (progress: vscode.Progress<{message?: string; increment?: number}>, token: vscode.CancellationToken) => {
             try {
-                // Step 1: Generate explanation
-                progress.report({ increment: 0, message: "Analyzing code..." });
-                const explanation = await codeExplainer.explainCode(code, language, fileName);
+                // Step 1: Index code elements
+                progress.report({ increment: 0, message: "Indexing code elements..." });
+                const codeIndexer = new CodeIndexer();
+                const indexedCode = codeIndexer.indexCode(code, language);
                 
                 if (token.isCancellationRequested) {
                     return;
                 }
 
-                // Step 2: Convert to speech
-                progress.report({ increment: 50, message: "Converting to speech..." });
-                const audioBuffer = await voiceSynthesizer.synthesizeSpeech(explanation);
+                // Step 2: Generate mapped explanation
+                progress.report({ increment: 20, message: "Generating mapped explanation..." });
+                const mappedExplanation = await codeExplainer.explainCodeWithMapping(indexedCode, language, fileName);
                 
                 if (token.isCancellationRequested) {
                     return;
                 }
 
-                // Step 3: Show webview with explanation and audio
-                progress.report({ increment: 100, message: "Ready!" });
-                await webviewManager.showExplanation(explanation, audioBuffer, code, language);
-
-                // Keep highlight during explanation
-                if (selection) {
-                    setTimeout(() => {
-                        highlightManager.clearHighlights(editor);
-                    }, 10000); // Clear after 10 seconds
+                // Step 3: Convert to speech with timing
+                progress.report({ increment: 50, message: "Converting to speech with timing..." });
+                const synthesisResult = await voiceSynthesizer.synthesizeSpeechWithTiming(mappedExplanation.fullText);
+                
+                if (token.isCancellationRequested) {
+                    return;
                 }
+
+                // Step 4: Map timing data to segments
+                progress.report({ increment: 75, message: "Mapping timing to code elements..." });
+                const timedMappedExplanation = mapTimingToSegments(mappedExplanation, synthesisResult);
+                
+                if (token.isCancellationRequested) {
+                    return;
+                }
+
+                // Step 5: Show webview with preprocessed synchronized explanation
+                progress.report({ increment: 90, message: "Setting up precise highlighting..." });
+                await webviewManager.showPreprocessedExplanation(
+                    timedMappedExplanation,
+                    indexedCode,
+                    synthesisResult, 
+                    code, 
+                    language, 
+                    editor,
+                    selection
+                );
+
+                progress.report({ increment: 100, message: "Ready for precise synchronized highlighting!" });
 
             } catch (error) {
                 console.error('Error in processCodeExplanation:', error);
@@ -170,4 +191,60 @@ export function deactivate() {
     if (webviewManager) {
         webviewManager.dispose();
     }
+}
+
+function mapTimingToSegments(mappedExplanation: MappedExplanation, synthesisResult: SynthesisResult): MappedExplanation {
+    // Map word timing data to explanation segments for precise highlighting
+    const fullText = mappedExplanation.fullText;
+    const words = fullText.split(/\s+/);
+    const wordTimings = synthesisResult.wordTimings;
+
+    // Create a mapping of word positions to timing data
+    const wordPositionToTiming = new Map<number, { startMs: number; endMs: number }>();
+    
+    wordTimings.forEach((timing, index) => {
+        if (index < words.length) {
+            wordPositionToTiming.set(index, {
+                startMs: timing.startMs,
+                endMs: timing.endMs
+            });
+        }
+    });
+
+    // Map segments to timing based on their text position in the full explanation
+    const timedSegments = mappedExplanation.segments.map(segment => {
+        const segmentWords = segment.text.split(/\s+/);
+        const segmentStart = fullText.indexOf(segment.text);
+        
+        if (segmentStart === -1) {
+            // Segment not found in full text, use estimated timing
+            return {
+                ...segment,
+                startTime: 0,
+                endTime: 1000 // 1 second default
+            };
+        }
+
+        // Count words before this segment
+        const textBeforeSegment = fullText.substring(0, segmentStart);
+        const wordsBeforeSegment = textBeforeSegment.split(/\s+/).length - 1;
+        
+        // Find timing for first and last word of segment
+        const firstWordIndex = Math.max(0, wordsBeforeSegment);
+        const lastWordIndex = Math.min(words.length - 1, firstWordIndex + segmentWords.length - 1);
+        
+        const startTiming = wordPositionToTiming.get(firstWordIndex);
+        const endTiming = wordPositionToTiming.get(lastWordIndex);
+        
+        return {
+            ...segment,
+            startTime: startTiming?.startMs || 0,
+            endTime: endTiming?.endMs || startTiming?.endMs || 1000
+        };
+    });
+
+    return {
+        ...mappedExplanation,
+        segments: timedSegments
+    };
 }

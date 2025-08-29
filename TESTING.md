@@ -1,4 +1,8 @@
-# Testing the Code Voice Explainer Extension
+# Testing the Code Voice Explainer Extension with Preprocessed Highlighting
+
+## 🎯 NEW: Preprocessed Efficient Highlighting
+
+The extension now features **preprocessed, accurate highlighting** that's much more efficient! Code is indexed first, then explanations are mapped to specific elements, then voice is generated, resulting in precise yellow highlighting with maximum accuracy.
 
 ## Quick Start (OpenAI Only)
 
@@ -36,14 +40,29 @@ function calculateTotal(items) {
    - Right-click on the selection
    - Select "Explain Selected Code with Voice"
 
-### 4. Expected Behavior
+### 4. Expected Behavior (NEW Preprocessed Experience!)
 1. Extension will show: "Murf.ai API key not configured. Using OpenAI TTS as fallback for voice synthesis."
-2. Progress indicator: "Explaining code with voice..."
-3. A webview panel will open with:
-   - Audio player with generated speech
-   - Text explanation
-   - Original code display
-4. Audio will automatically start playing (if browser allows auto-play)
+2. Progress indicators: 
+   - "Indexing code elements..."
+   - "Generating mapped explanation..."
+   - "Converting to speech with timing..."
+   - "Mapping timing to code elements..."
+   - "Setting up precise highlighting..."
+   - "Ready for precise synchronized highlighting!"
+3. A **preprocessed explanation webview panel** will open with:
+   - **Split-screen layout**: Controls on left, code on right
+   - **Audio player** with highlight controls (🎯 Highlight ON/OFF button)
+   - **Preprocessed explanation** optimized for accuracy
+   - **Dual highlighting system**: Blue for selection, light yellow for explanation
+   - **Precise element mapping** based on preprocessed analysis
+   - **Efficiency indicator** (pulsing green dot)
+4. **Preprocessed synchronized playback**:
+   - Audio starts automatically (if browser allows)
+   - **Blue highlighting** when you select code for explanation
+   - **Light yellow highlighting** during voice explanation (minimal border)
+   - **No word highlighting in webview** - focus is on code only
+   - **Precise timing** based on preprocessed mapping
+   - **Maximum efficiency** - everything computed before playback starts
 
 ### 5. Testing Different Scenarios
 
@@ -90,9 +109,62 @@ If you have a Murf.ai API key:
 4. If Murf.ai fails, should automatically fall back to OpenAI TTS
 5. Extension will show "Using Murf.ai for voice synthesis" (no fallback message)
 
-### 8. Audio Controls Testing
+### 8. New Natural Highlighting Testing
+
+#### 🎯 Test the Natural Teaching Experience:
+
+1. **Natural Word-based Highlighting**:
+   - Play audio and watch code elements highlight as they're **naturally mentioned**
+   - Functions highlight when teacher says "this function" or mentions function name
+   - Variables highlight when teacher mentions them in conversation
+   - Operators highlight when teacher talks about "equals", "loop", etc.
+
+2. **Highlight Controls**:
+   - **🎯 Highlight ON**: Green pulsing indicator, natural highlighting follows speech
+   - **🎯 Highlight OFF**: Highlighting stops, audio continues independently
+   - Toggle should work during playback
+
+3. **Word-level Synchronization**:
+   - **Current word highlighting** in explanation text
+   - **Smooth scrolling** to follow current word
+   - **Code element detection** working for functions, variables, operators
+   - **Timing accuracy** using Murf.ai word timing data
+
+4. **Natural Teacher Experience**:
+   - **Conversational explanations** not rigid sections
+   - **Organic highlighting** that follows natural speech patterns
+   - **Visual feedback** shows which words map to code elements
+   - **Professional teaching interface** like a real instructor
+
+#### 🔧 Test Natural Highlighting Scenarios:
+
+```javascript
+function calculateTotal(items) {
+    let total = 0;
+    for (let item of items) {
+        total += item.price * item.quantity;
+    }
+    return total;
+}
+```
+
+#### 📊 Expected Natural Highlighting:
+- **"calculateTotal function"** → highlights function name
+- **"items parameter"** → highlights parameter  
+- **"total variable"** → highlights variable declaration
+- **"for loop"** → highlights for loop structure
+- **"price" and "quantity"** → highlights property access
+- **"return"** → highlights return statement
+
+**Natural Flow Example**:
+> "Let's look at this **calculateTotal** function. It takes an **items** parameter, and then we initialize a **total** variable to zero. The **for loop** here goes through each **item**..."
+
+As the teacher speaks, watch the corresponding code elements highlight naturally!
+
+### 9. Audio Controls Testing
 - **Play/Pause**: Should control audio playback
-- **Restart**: Should restart audio from beginning
+- **Restart**: Should restart audio from beginning  
+- **🔗 Sync ON/OFF**: Toggle real-time highlighting
 - **Save Audio**: Should allow saving as MP3 file
 
 ### 9. Common Issues & Solutions
@@ -122,13 +194,65 @@ If you encounter issues:
 
 ## Success Criteria
 
-✅ Extension loads without errors  
-✅ Settings are configurable  
-✅ Code explanation generates successfully  
-✅ Audio plays in webview  
-✅ Fallback to OpenAI TTS works when Murf.ai unavailable  
-✅ Error handling works for missing API keys  
-✅ Code highlighting works for selections  
-✅ Audio can be saved as MP3  
+### ✅ Core Functionality
+- Extension loads without errors  
+- Settings are configurable  
+- Code explanation generates successfully  
+- Audio plays in webview  
+- Fallback to OpenAI TTS works when Murf.ai unavailable  
+- Error handling works for missing API keys  
+- Audio can be saved as MP3  
 
-Happy testing! 🎤✨
+### ✅ NEW: Preprocessed Efficient Highlighting Features
+- **Preprocessed Analysis**: Code indexed first for maximum accuracy  
+- **Mapped Explanations**: AI explanations precisely mapped to code elements  
+- **Dual Highlighting System**: 
+  - 🔵 **Blue highlighting** when selecting code for explanation
+  - 🟡 **Light yellow highlighting** during voice explanation (minimal border)
+- **No Webview Highlighting**: Clean, focused experience without distracting word highlighting  
+- **Precise Sync Controls**: Toggle preprocessed highlighting on/off during playback  
+- **Advanced Code Indexing**: Intelligent detection of functions, variables, operators, keywords with unique IDs  
+- **Efficient Processing**: Everything computed upfront for smooth playback  
+- **Murf.ai Timing Integration**: Uses precise word timing data mapped to preprocessed segments  
+- **Maximum Accuracy**: Preprocessing ensures nearly perfect element mapping  
+
+### 🎯 MVP Testing Checklist
+
+**Basic Test (5 minutes)**:
+1. ✅ Set OpenAI API key
+2. ✅ Create simple function 
+3. ✅ Right-click → "Explain Selected Code with Voice"
+4. ✅ Watch synchronized highlighting in action
+
+**Advanced Test (10 minutes)**:
+1. ✅ Test with complex multi-section code
+2. ✅ Toggle sync on/off during playback
+3. ✅ Click different sections in UI
+4. ✅ Test audio controls (play, pause, restart)
+5. ✅ Verify highlighting in both webview and editor
+
+**Edge Cases (5 minutes)**:
+1. ✅ Test with very short code (should create 1-2 sections)
+2. ✅ Test with very long code (should break into manageable sections)  
+3. ✅ Test sync toggle during different parts of audio
+4. ✅ Test with different programming languages
+
+## 🎉 You now have a preprocessed, efficient code explanation experience!
+
+The extension creates an **optimized teaching environment** where:
+- 🎤 **Natural voice** explains code with preprocessed accuracy
+- 🔵🟡 **Dual highlighting** shows selection (blue) and explanation (light yellow) phases distinctly  
+- 📊 **Preprocessed analysis** ensures maximum accuracy and efficiency
+- 🔄 **Smart indexing** maps every explanation segment to specific code elements
+- ⚡ **Maximum efficiency** - everything computed upfront for smooth experience!
+
+**Key improvements:**
+1. ✅ **No webview highlighting** - clean, focused experience
+2. ✅ **Dual highlighting system** - blue for selection, light yellow for explanation
+3. ✅ **Preprocessed mapping** - nearly perfect accuracy
+4. ✅ **Efficient processing** - much faster and more reliable
+5. ✅ **Minimal borders** - light yellow highlighting is subtle and non-intrusive
+
+**The most accurate and efficient code explanation experience possible!**
+
+Happy testing! 🎤✨📚⚡
