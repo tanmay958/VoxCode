@@ -1,0 +1,103 @@
+{
+  "name": "code-voice-explainer",
+  "displayName": "Code Voice Explainer",
+  "description": "Explains code using AI and converts explanations to voice using Murf.ai TTS",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other",
+    "Education"
+  ],
+  "keywords": [
+    "code explanation",
+    "TTS",
+    "voice",
+    "AI",
+    "murf.ai"
+  ],
+  "activationEvents": [
+    "onCommand:codeVoiceExplainer.explainCode",
+    "onCommand:codeVoiceExplainer.explainSelection"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeVoiceExplainer.explainCode",
+        "title": "Explain Code with Voice",
+        "category": "Code Voice Explainer"
+      },
+      {
+        "command": "codeVoiceExplainer.explainSelection",
+        "title": "Explain Selected Code with Voice",
+        "category": "Code Voice Explainer"
+      },
+      {
+        "command": "codeVoiceExplainer.openSettings",
+        "title": "Open Code Voice Explainer Settings",
+        "category": "Code Voice Explainer"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorHasSelection",
+          "command": "codeVoiceExplainer.explainSelection",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "codeVoiceExplainer.explainCode",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Code Voice Explainer",
+      "properties": {
+        "codeVoiceExplainer.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API Key for generating code explanations",
+          "scope": "application"
+        },
+        "codeVoiceExplainer.murfApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Murf.ai API Key for text-to-speech conversion (optional - falls back to OpenAI TTS if not available)",
+          "scope": "application"
+        },
+        "codeVoiceExplainer.murfVoiceId": {
+          "type": "string",
+          "default": "en-US-natalie",
+          "description": "Murf.ai voice ID to use for speech synthesis (e.g., en-US-natalie, en-US-clyde)",
+          "scope": "application"
+        },
+        "codeVoiceExplainer.explanationDetail": {
+          "type": "string",
+          "enum": ["brief", "detailed", "comprehensive"],
+          "default": "detailed",
+          "description": "Level of detail for code explanations",
+          "scope": "application"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "form-data": "^4.0.0"
+  }
+}
