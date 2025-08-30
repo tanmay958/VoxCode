@@ -2,6 +2,14 @@ import * as vscode from 'vscode';
 import axios from 'axios';
 import { IndexedCode, IndexedCodeElement } from '../utils/codeIndexer';
 
+interface VoiceLanguageMap {
+    [voiceId: string]: {
+        language: string;
+        languageName: string;
+        country: string;
+    };
+}
+
 export interface CodeSection {
     startLine: number;
     endLine: number;
@@ -30,6 +38,83 @@ export interface MappedExplanation {
     unmappedText: string[]; // Text that doesn't map to specific elements
 }
 
+// Voice ID to language mapping based on Murf.ai Voice Library
+const VOICE_LANGUAGE_MAP: VoiceLanguageMap = {
+    // English (US)
+    'en-US-natalie': { language: 'English', languageName: 'English (US)', country: 'United States' },
+    'en-US-terrell': { language: 'English', languageName: 'English (US)', country: 'United States' },
+    'en-US-miles': { language: 'English', languageName: 'English (US)', country: 'United States' },
+    'en-US-ken': { language: 'English', languageName: 'English (US)', country: 'United States' },
+    'en-US-samantha': { language: 'English', languageName: 'English (US)', country: 'United States' },
+    'en-US-paul': { language: 'English', languageName: 'English (US)', country: 'United States' },
+    'en-US-claire': { language: 'English', languageName: 'English (US)', country: 'United States' },
+    'en-US-ryan': { language: 'English', languageName: 'English (US)', country: 'United States' },
+    
+    // English (UK)
+    'en-UK-ruby': { language: 'English', languageName: 'English (UK)', country: 'United Kingdom' },
+    'en-UK-theo': { language: 'English', languageName: 'English (UK)', country: 'United Kingdom' },
+    'en-UK-hazel': { language: 'English', languageName: 'English (UK)', country: 'United Kingdom' },
+    'en-UK-archie': { language: 'English', languageName: 'English (UK)', country: 'United Kingdom' },
+    
+    // Spanish
+    'es-ES-diego': { language: 'Spanish', languageName: 'Español (España)', country: 'Spain' },
+    'es-ES-valentina': { language: 'Spanish', languageName: 'Español (España)', country: 'Spain' },
+    'es-MX-fernando': { language: 'Spanish', languageName: 'Español (México)', country: 'Mexico' },
+    'es-MX-rosa': { language: 'Spanish', languageName: 'Español (México)', country: 'Mexico' },
+    
+    // French
+    'fr-FR-amelie': { language: 'French', languageName: 'Français (France)', country: 'France' },
+    'fr-FR-antoine': { language: 'French', languageName: 'Français (France)', country: 'France' },
+    'fr-FR-henri': { language: 'French', languageName: 'Français (France)', country: 'France' },
+    'fr-FR-louise': { language: 'French', languageName: 'Français (France)', country: 'France' },
+    
+    // German
+    'de-DE-klaus': { language: 'German', languageName: 'Deutsch (Deutschland)', country: 'Germany' },
+    'de-DE-petra': { language: 'German', languageName: 'Deutsch (Deutschland)', country: 'Germany' },
+    'de-DE-werner': { language: 'German', languageName: 'Deutsch (Deutschland)', country: 'Germany' },
+    'de-DE-julia': { language: 'German', languageName: 'Deutsch (Deutschland)', country: 'Germany' },
+    
+    // Italian
+    'it-IT-alessandro': { language: 'Italian', languageName: 'Italiano (Italia)', country: 'Italy' },
+    'it-IT-chiara': { language: 'Italian', languageName: 'Italiano (Italia)', country: 'Italy' },
+    'it-IT-giuseppe': { language: 'Italian', languageName: 'Italiano (Italia)', country: 'Italy' },
+    'it-IT-francesca': { language: 'Italian', languageName: 'Italiano (Italia)', country: 'Italy' },
+    
+    // Portuguese
+    'pt-BR-antonio': { language: 'Portuguese', languageName: 'Português (Brasil)', country: 'Brazil' },
+    'pt-BR-bruna': { language: 'Portuguese', languageName: 'Português (Brasil)', country: 'Brazil' },
+    'pt-PT-diogo': { language: 'Portuguese', languageName: 'Português (Portugal)', country: 'Portugal' },
+    'pt-PT-ines': { language: 'Portuguese', languageName: 'Português (Portugal)', country: 'Portugal' },
+    
+    // Dutch
+    'nl-NL-daan': { language: 'Dutch', languageName: 'Nederlands (Nederland)', country: 'Netherlands' },
+    'nl-NL-sanne': { language: 'Dutch', languageName: 'Nederlands (Nederland)', country: 'Netherlands' },
+    
+    // Russian
+    'ru-RU-dmitri': { language: 'Russian', languageName: 'Русский (Россия)', country: 'Russia' },
+    'ru-RU-svetlana': { language: 'Russian', languageName: 'Русский (Россия)', country: 'Russia' },
+    
+    // Chinese
+    'zh-CN-wang': { language: 'Chinese', languageName: '中文 (中国)', country: 'China' },
+    'zh-CN-xiaoxiao': { language: 'Chinese', languageName: '中文 (中国)', country: 'China' },
+    
+    // Japanese
+    'ja-JP-akira': { language: 'Japanese', languageName: '日本語 (日本)', country: 'Japan' },
+    'ja-JP-emi': { language: 'Japanese', languageName: '日本語 (日本)', country: 'Japan' },
+    
+    // Korean
+    'ko-KR-minho': { language: 'Korean', languageName: '한국어 (한국)', country: 'South Korea' },
+    'ko-KR-sora': { language: 'Korean', languageName: '한국어 (한국)', country: 'South Korea' },
+    
+    // Hindi
+    'hi-IN-kalpana': { language: 'Hindi', languageName: 'हिन्दी (भारत)', country: 'India' },
+    'hi-IN-ravi': { language: 'Hindi', languageName: 'हिन्दी (भारत)', country: 'India' },
+    
+    // Arabic
+    'ar-SA-omar': { language: 'Arabic', languageName: 'العربية (السعودية)', country: 'Saudi Arabia' },
+    'ar-SA-layla': { language: 'Arabic', languageName: 'العربية (السعودية)', country: 'Saudi Arabia' }
+};
+
 export class CodeExplainer {
     private apiKey: string = '';
 
@@ -56,8 +141,19 @@ export class CodeExplainer {
 
         const config = vscode.workspace.getConfiguration('codeVoiceExplainer');
         const explanationDetail = config.get<string>('explanationDetail') || 'detailed';
+        
+        // Get selected voice and determine target language
+        const selectedVoiceId = config.get<string>('murfVoiceId') || 'en-US-natalie';
+        const voiceLanguageInfo = VOICE_LANGUAGE_MAP[selectedVoiceId];
+        const targetLanguage = voiceLanguageInfo ? voiceLanguageInfo.language : 'English';
+        const languageName = voiceLanguageInfo ? voiceLanguageInfo.languageName : 'English (US)';
+        
+        console.log(`🌍 Generating explanation in ${targetLanguage} (${languageName}) for voice: ${selectedVoiceId}`);
 
-        const prompt = this.buildNaturalPrompt(code, language, fileName, explanationDetail);
+        const prompt = this.buildNaturalPrompt(code, language, fileName, explanationDetail, targetLanguage);
+
+        // Build system prompt with language instruction
+        const systemPrompt = this.buildSystemPrompt(targetLanguage, languageName);
 
         try {
             const response = await axios.post(
@@ -67,7 +163,7 @@ export class CodeExplainer {
                     messages: [
                         {
                             role: 'system',
-                            content: 'You are an expert programming teacher who explains code in a natural, conversational way. Your explanations should mention specific code elements (function names, variables, operators) naturally as you would when teaching in person. Be engaging and educational, like you\'re sitting next to the student pointing at different parts of the code.'
+                            content: systemPrompt
                         },
                         {
                             role: 'user',
@@ -271,16 +367,65 @@ Return JSON in this exact format:
 }`;
     }
 
-    private buildNaturalPrompt(code: string, language: string, fileName: string, detail: string): string {
+    private buildSystemPrompt(targetLanguage: string, languageName: string): string {
+        if (targetLanguage === 'English') {
+            return 'You are an expert programming teacher who explains code in a natural, conversational way. Your explanations should mention specific code elements (function names, variables, operators) naturally as you would when teaching in person. Be engaging and educational, like you\'re sitting next to the student pointing at different parts of the code.';
+        }
+        
+        const languageInstructions = {
+            'Spanish': 'Eres un profesor experto en programación que explica código de manera natural y conversacional. Debes mencionar elementos específicos del código (nombres de funciones, variables, operadores) de forma natural como lo harías al enseñar en persona. Sé atractivo y educativo, como si estuvieras sentado al lado del estudiante señalando diferentes partes del código.',
+            'French': 'Vous êtes un professeur expert en programmation qui explique le code de manière naturelle et conversationnelle. Vos explications doivent mentionner des éléments de code spécifiques (noms de fonctions, variables, opérateurs) naturellement comme vous le feriez en enseignant en personne. Soyez engageant et éducatif, comme si vous étiez assis à côté de l\'étudiant en pointant différentes parties du code.',
+            'German': 'Sie sind ein erfahrener Programmierlehrer, der Code auf natürliche, gesprächige Weise erklärt. Ihre Erklärungen sollten spezifische Code-Elemente (Funktionsnamen, Variablen, Operatoren) natürlich erwähnen, wie Sie es beim persönlichen Unterrichten tun würden. Seien Sie fesselnd und lehrreich, als würden Sie neben dem Schüler sitzen und auf verschiedene Code-Teile zeigen.',
+            'Italian': 'Sei un insegnante esperto di programmazione che spiega il codice in modo naturale e colloquiale. Le tue spiegazioni dovrebbero menzionare elementi specifici del codice (nomi di funzioni, variabili, operatori) naturalmente come faresti insegnando di persona. Sii coinvolgente ed educativo, come se fossi seduto accanto allo studente indicando diverse parti del codice.',
+            'Portuguese': 'Você é um professor especialista em programação que explica código de forma natural e conversacional. Suas explicações devem mencionar elementos específicos do código (nomes de funções, variáveis, operadores) naturalmente como você faria ao ensinar pessoalmente. Seja envolvente e educativo, como se estivesse sentado ao lado do aluno apontando para diferentes partes do código.',
+            'Dutch': 'Je bent een expert programmeerleraar die code op een natuurlijke, conversationele manier uitlegt. Je uitleg moet specifieke code-elementen (functienamen, variabelen, operatoren) natuurlijk noemen zoals je zou doen bij persoonlijk onderwijs. Wees boeiend en educatief, alsof je naast de student zit en naar verschillende delen van de code wijst.',
+            'Russian': 'Вы опытный преподаватель программирования, который объясняет код естественно и разговорно. Ваши объяснения должны естественно упоминать конкретные элементы кода (названия функций, переменные, операторы), как вы бы делали при личном обучении. Будьте увлекательными и образовательными, как будто сидите рядом со студентом и указываете на разные части кода.',
+            'Chinese': '您是编程专家老师，以自然、对话的方式解释代码。您的解释应该自然地提及特定的代码元素（函数名、变量、操作符），就像您在亲自教学时一样。要引人入胜且具有教育性，就像您坐在学生旁边指向代码的不同部分一样。',
+            'Japanese': 'あなたはプログラミングの専門教師で、自然で会話的な方法でコードを説明します。あなたの説明は、対面で教えるときのように、特定のコード要素（関数名、変数、演算子）を自然に言及する必要があります。学生の隣に座ってコードのさまざまな部分を指しているかのように、魅力的で教育的であってください。',
+            'Korean': '당신은 자연스럽고 대화적인 방식으로 코드를 설명하는 프로그래밍 전문 교사입니다. 당신의 설명은 직접 가르칠 때처럼 특정 코드 요소(함수명, 변수, 연산자)를 자연스럽게 언급해야 합니다. 학생 옆에 앉아 코드의 다른 부분을 가리키는 것처럼 매력적이고 교육적이어야 합니다.',
+            'Hindi': 'आप एक विशेषज्ञ प्रोग्रामिंग शिक्षक हैं जो कोड को प्राकृतिक, बातचीत के तरीके से समझाते हैं। आपकी व्याख्याओं में विशिष्ट कोड तत्वों (फ़ंक्शन नाम, चर, ऑपरेटर) का प्राकृतिक रूप से उल्लेख होना चाहिए जैसा कि आप व्यक्तिगत रूप से पढ़ाते समय करते हैं। आकर्षक और शैक्षिक बनें, जैसे कि आप छात्र के बगल में बैठकर कोड के विभिन्न हिस्सों की ओर इशारा कर रहे हों।',
+            'Arabic': 'أنت مدرس برمجة خبير يشرح الكود بطريقة طبيعية ومحادثة. يجب أن تذكر تفسيراتك عناصر الكود المحددة (أسماء الوظائف، المتغيرات، المشغلات) بشكل طبيعي كما تفعل عند التدريس شخصياً. كن جذاباً وتعليمياً، كما لو كنت جالساً بجانب الطالب تشير إلى أجزاء مختلفة من الكود.'
+        };
+        
+        const instruction = languageInstructions[targetLanguage as keyof typeof languageInstructions];
+        
+        if (instruction) {
+            return instruction;
+        }
+        
+        // Fallback with language specification
+        return `You are an expert programming teacher who explains code in a natural, conversational way. IMPORTANT: You must respond entirely in ${targetLanguage} (${languageName}). Your explanations should mention specific code elements (function names, variables, operators) naturally as you would when teaching in person. Be engaging and educational, like you're sitting next to the student pointing at different parts of the code.`;
+    }
+
+    private buildNaturalPrompt(code: string, language: string, fileName: string, detail: string, targetLanguage: string = 'English'): string {
         const detailInstructions = {
-            brief: 'Provide a brief, natural explanation in 2-3 sentences, mentioning key code elements.',
-            detailed: 'Provide a conversational explanation like you\'re teaching a student, naturally mentioning function names, variables, and key operations.',
-            comprehensive: 'Provide a thorough, engaging explanation like an experienced teacher, naturally referencing all important code elements and their purposes.'
+            English: {
+                brief: 'Provide a brief, natural explanation in 2-3 sentences, mentioning key code elements.',
+                detailed: 'Provide a conversational explanation like you\'re teaching a student, naturally mentioning function names, variables, and key operations.',
+                comprehensive: 'Provide a thorough, engaging explanation like an experienced teacher, naturally referencing all important code elements and their purposes.'
+            },
+            Spanish: {
+                brief: 'Proporciona una explicación breve y natural en 2-3 oraciones, mencionando elementos clave del código.',
+                detailed: 'Proporciona una explicación conversacional como si estuvieras enseñando a un estudiante, mencionando naturalmente nombres de funciones, variables y operaciones clave.',
+                comprehensive: 'Proporciona una explicación completa y atractiva como un profesor experimentado, referenciando naturalmente todos los elementos importantes del código y sus propósitos.'
+            },
+            French: {
+                brief: 'Fournissez une explication brève et naturelle en 2-3 phrases, mentionnant les éléments clés du code.',
+                detailed: 'Fournissez une explication conversationnelle comme si vous enseigniez à un étudiant, mentionnant naturellement les noms de fonctions, variables et opérations clés.',
+                comprehensive: 'Fournissez une explication complète et engageante comme un professeur expérimenté, référençant naturellement tous les éléments importants du code et leurs objectifs.'
+            },
+            German: {
+                brief: 'Geben Sie eine kurze, natürliche Erklärung in 2-3 Sätzen mit wichtigen Code-Elementen.',
+                detailed: 'Geben Sie eine gesprächige Erklärung wie beim Unterrichten eines Schülers, erwähnen Sie natürlich Funktionsnamen, Variablen und wichtige Operationen.',
+                comprehensive: 'Geben Sie eine gründliche, fesselnde Erklärung wie ein erfahrener Lehrer, referenzieren Sie natürlich alle wichtigen Code-Elemente und ihre Zwecke.'
+            }
         };
 
-        const instruction = detailInstructions[detail as keyof typeof detailInstructions] || detailInstructions.detailed;
+        const languageInstructions = detailInstructions[targetLanguage as keyof typeof detailInstructions] || detailInstructions.English;
+        const instruction = languageInstructions[detail as keyof typeof languageInstructions] || languageInstructions.detailed;
 
-        return `Please explain this ${language} code from file "${fileName}" in a natural, conversational way. ${instruction}
+        if (targetLanguage === 'English') {
+            return `Please explain this ${language} code from file "${fileName}" in a natural, conversational way. ${instruction}
 
 IMPORTANT GUIDELINES:
 - Speak naturally like you're teaching in person
@@ -297,6 +442,16 @@ Code to explain:
 \`\`\`${language}
 ${code}
 \`\`\``;
+        } else {
+            return `Por favor explica este código ${language} del archivo "${fileName}" de manera natural y conversacional. ${instruction}
+
+Código a explicar:
+\`\`\`${language}
+${code}
+\`\`\`
+
+IMPORTANTE: Responde completamente en ${targetLanguage}. Menciona elementos específicos del código (nombres de funciones, variables, operadores) de forma natural como lo harías al enseñar en persona.`;
+        }
     }
 
     private buildPrompt(code: string, language: string, fileName: string, detail: string): string {
