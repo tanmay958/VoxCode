@@ -27,19 +27,3 @@ const shoppingCart = [
 
 const finalTotal = calculateTotal(shoppingCart);
 console.log(`Total: $${finalTotal.toFixed(2)}`);
-
-/* 
-To test the multi-language voices:
-1. Run Command Palette (Ctrl+Shift+P / Cmd+Shift+P)
-2. Search for "Select Voice Language & Style"
-3. Choose from 150+ voices in 20+ languages:
-   - 🇺🇸 English US (Natalie, Miles, Ken, etc.)
-   - 🇬🇧 English UK (Ruby, Theo, Hazel, etc.)
-   - 🇪🇸 Spanish (Diego, Valentina, Fernando, etc.)
-   - 🇫🇷 French (Amelie, Antoine, Henri, etc.)
-   - 🇩🇪 German (Klaus, Petra, Werner, etc.)
-   - 🇮🇹 Italian (Alessandro, Chiara, Giuseppe, etc.)
-   - And many more languages!
-4. Select your preferred voice style (Conversational, Narration, Promo, etc.)
-5. Try explaining the function above to hear your new voice!
-*/

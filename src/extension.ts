@@ -44,8 +44,16 @@ export function activate(context: vscode.ExtensionContext) {
         await selectVoiceLanguage();
     });
 
+    const askQuestionCommand = vscode.commands.registerCommand('codeVoiceExplainer.askQuestion', async () => {
+        await askQuestionAboutCode();
+    });
+
+    const generateCodeCommand = vscode.commands.registerCommand('codeVoiceExplainer.generateCode', async () => {
+        await generateCodeWithVoice();
+    });
+
     // Add commands to subscriptions
-    context.subscriptions.push(explainCodeCommand, explainSelectionCommand, openSettingsCommand, selectVoiceCommand);
+    context.subscriptions.push(explainCodeCommand, explainSelectionCommand, openSettingsCommand, selectVoiceCommand, askQuestionCommand, generateCodeCommand);
 
     // Show welcome message
     vscode.window.showInformationMessage('Code Voice Explainer is ready! Right-click on code to explain it with voice.');
@@ -328,14 +336,14 @@ async function selectVoiceLanguage() {
         // Ask for voice style
         const currentStyle = config.get<string>('voiceStyle') || 'Conversational';
         const styleOptions = [
-            { label: '💬 Conversational', description: 'Natural, friendly tone', value: 'Conversational' },
-            { label: '📖 Narration', description: 'Clear storytelling voice', value: 'Narration' },
-            { label: '📢 Promo', description: 'Energetic promotional style', value: 'Promo' },
-            { label: '📺 Newscast', description: 'Professional news anchor style', value: 'Newscast' },
-            { label: '🧘 Calm', description: 'Relaxed, soothing tone', value: 'Calm' },
-            { label: '✨ Inspirational', description: 'Motivating, uplifting voice', value: 'Inspirational' },
-            { label: '📚 Audiobook', description: 'Perfect for long-form content', value: 'Audiobook' },
-            { label: '🎬 Documentary', description: 'Informative, educational tone', value: 'Documentary' }
+            { label: 'Conversational', description: 'Natural, friendly tone', value: 'Conversational' },
+            { label: 'Narration', description: 'Clear storytelling voice', value: 'Narration' },
+            { label: 'Promo', description: 'Energetic promotional style', value: 'Promo' },
+            { label: 'Newscast', description: 'Professional news anchor style', value: 'Newscast' },
+            { label: 'Calm', description: 'Relaxed, soothing tone', value: 'Calm' },
+            { label: 'Inspirational', description: 'Motivating, uplifting voice', value: 'Inspirational' },
+            { label: 'Audiobook', description: 'Perfect for long-form content', value: 'Audiobook' },
+            { label: 'Documentary', description: 'Informative, educational tone', value: 'Documentary' }
         ];
 
         const selectedStyle = await vscode.window.showQuickPick(
@@ -344,7 +352,7 @@ async function selectVoiceLanguage() {
                 picked: style.value === currentStyle
             })),
             {
-                title: '🎭 Select Voice Style',
+                title: 'Select Voice Style',
                 placeHolder: 'Choose the speaking style for your voice'
             }
         );
@@ -359,6 +367,174 @@ async function selectVoiceLanguage() {
         vscode.window.showInformationMessage(
             `🎵 Voice updated to ${voiceName} (${styleName}). Try explaining some code to hear your new voice!`
         );
+    }
+}
+
+async function askQuestionAboutCode() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showErrorMessage('No active editor found');
+        return;
+    }
+
+    const selection = editor.selection;
+    if (selection.isEmpty) {
+        vscode.window.showErrorMessage('Please select some code first');
+        return;
+    }
+
+    const selectedCode = editor.document.getText(selection);
+    const language = editor.document.languageId;
+    const fileName = editor.document.fileName;
+
+    // Ask user for their question
+    const question = await vscode.window.showInputBox({
+        title: 'Ask a Question About Your Code',
+        placeHolder: 'e.g., "What happens if the input is null?", "How can I optimize this?", "What are potential bugs?"',
+        prompt: 'Ask any question about the selected code - the AI will explain with voice!',
+        ignoreFocusOut: true
+    });
+
+    if (!question) {
+        return; // User cancelled
+    }
+
+    console.log(`User asked: "${question}" about ${language} code`);
+
+    try {
+        // Highlight the selected code
+        highlightManager.highlightSelectionRange(editor, selection);
+
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Answering your question with voice...",
+            cancellable: true
+        }, async (progress, token) => {
+            // Step 1: Generate contextual answer
+            progress.report({ increment: 20, message: "AI analyzing your question..." });
+            const answer = await codeExplainer.answerCodeQuestion(selectedCode, language, fileName, question);
+            
+            if (token.isCancellationRequested) {
+                return;
+            }
+
+            // Step 2: Convert to speech
+            progress.report({ increment: 60, message: "Converting answer to voice..." });
+            const synthesisResult = await voiceSynthesizer.synthesizeSpeechWithTiming(answer);
+            
+            if (token.isCancellationRequested) {
+                return;
+            }
+
+            // Step 3: Show interactive Q&A in webview
+            progress.report({ increment: 90, message: "Setting up interactive answer..." });
+            const audioBase64 = synthesisResult.audioBuffer.toString('base64');
+            const audioDataUri = `data:audio/mpeg;base64,${audioBase64}`;
+            
+            await webviewManager.showInteractiveQA(
+                question,
+                answer,
+                selectedCode,
+                language,
+                audioDataUri,
+                editor,
+                selection
+            );
+
+            progress.report({ increment: 100, message: "Ready! Your question has been answered." });
+        });
+
+    } catch (error) {
+        console.error('Error in askQuestionAboutCode:', error);
+        vscode.window.showErrorMessage(`Q&A error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        
+        // Clear highlights on error
+        highlightManager.clearHighlights(editor);
+    }
+}
+
+async function generateCodeWithVoice() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        vscode.window.showErrorMessage('No active editor found');
+        return;
+    }
+
+    // Ask user what code they want to generate
+    const codeRequest = await vscode.window.showInputBox({
+        title: '🎤 Generate Code with Voice',
+        placeHolder: 'e.g., "Create a function to sort an array", "Write a REST API endpoint", "Make a React component"',
+        prompt: 'Describe what code you want to generate - AI will create it and explain with voice!',
+        ignoreFocusOut: true
+    });
+
+    if (!codeRequest) {
+        return; // User cancelled
+    }
+
+    // Get current language context
+    const language = editor.document.languageId;
+    const fileName = editor.document.fileName;
+    
+    console.log(`🎤 User requested: "${codeRequest}" for ${language}`);
+
+    try {
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Generating code with voice explanation...",
+            cancellable: true
+        }, async (progress, token) => {
+            // Step 1: Generate code
+            progress.report({ increment: 15, message: "AI generating your code..." });
+            const generatedCode = await codeExplainer.generateCode(codeRequest, language, fileName);
+            
+            if (token.isCancellationRequested) {
+                return;
+            }
+
+            // Step 2: Generate explanation
+            progress.report({ increment: 35, message: "Creating explanation..." });
+            const explanation = await codeExplainer.explainGeneratedCode(generatedCode, codeRequest, language);
+            
+            if (token.isCancellationRequested) {
+                return;
+            }
+
+            // Step 3: Convert to speech
+            progress.report({ increment: 60, message: "Converting to voice..." });
+            const synthesisResult = await voiceSynthesizer.synthesizeSpeechWithTiming(explanation);
+            
+            if (token.isCancellationRequested) {
+                return;
+            }
+
+            // Step 4: Insert code and show explanation
+            progress.report({ increment: 85, message: "Inserting code and preparing explanation..." });
+            
+            // Insert the generated code at cursor position
+            await editor.edit(editBuilder => {
+                editBuilder.insert(editor.selection.active, generatedCode);
+            });
+
+            // Show voice explanation
+            const audioBase64 = synthesisResult.audioBuffer.toString('base64');
+            const audioDataUri = `data:audio/mpeg;base64,${audioBase64}`;
+            
+            await webviewManager.showCodeGeneration(
+                codeRequest,
+                generatedCode,
+                explanation,
+                language,
+                audioDataUri,
+                editor
+            );
+
+            progress.report({ increment: 100, message: "Code generated! Listen to the explanation." });
+        });
+
+    } catch (error) {
+        console.error('Error in generateCodeWithVoice:', error);
+        vscode.window.showErrorMessage(`Code generation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
 

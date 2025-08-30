@@ -43,6 +43,16 @@
         "command": "codeVoiceExplainer.selectVoice",
         "title": "Select Voice Language & Style",
         "category": "Code Voice Explainer"
+      },
+      {
+        "command": "codeVoiceExplainer.askQuestion",
+        "title": "Ask Question About Code",
+        "category": "Code Voice Explainer"
+      },
+      {
+        "command": "codeVoiceExplainer.generateCode",
+        "title": "Generate Code with Voice",
+        "category": "Code Voice Explainer"
       }
     ],
     "menus": {
@@ -50,6 +60,15 @@
         {
           "when": "editorHasSelection",
           "command": "codeVoiceExplainer.explainSelection",
+          "group": "navigation"
+        },
+        {
+          "when": "editorHasSelection",
+          "command": "codeVoiceExplainer.askQuestion",
+          "group": "navigation"
+        },
+        {
+          "command": "codeVoiceExplainer.generateCode",
           "group": "navigation"
         }
       ],

@@ -3118,6 +3118,797 @@ export class WebviewManager {
 
     // Note: getTokenBasedWebviewContent method is removed as we now use HighlightTrack system
 
+    // === NEW Q&A AND CODE GENERATION WEBVIEW METHODS ===
+
+    async showInteractiveQA(
+        question: string,
+        answer: string,
+        selectedCode: string,
+        language: string,
+        audioUrl: string,
+        editor: vscode.TextEditor,
+        selection?: vscode.Selection
+    ) {
+        this.currentEditor = editor;
+
+        console.log(`🤔 Showing interactive Q&A for: "${question.substring(0, 50)}..."`);
+
+        // Create or show webview panel
+        if (this.panel) {
+            this.panel.reveal(vscode.ViewColumn.Beside);
+        } else {
+            this.panel = vscode.window.createWebviewPanel(
+                'codeVoiceExplainer',
+                'Interactive Code Q&A',
+                vscode.ViewColumn.Beside,
+                {
+                    enableScripts: true,
+                    localResourceRoots: [this.context.extensionUri],
+                    retainContextWhenHidden: true
+                }
+            );
+
+            // Handle panel disposal
+            this.panel.onDidDispose(() => {
+                this.panel = undefined;
+                this.currentEditor = undefined;
+                if (this.highlightManager && this.currentEditor) {
+                    this.highlightManager.clearHighlights(this.currentEditor);
+                }
+            });
+        }
+
+        // Set webview content
+        this.panel.webview.html = this.getInteractiveQAWebviewContent(
+            question,
+            answer,
+            selectedCode,
+            language,
+            audioUrl
+        );
+
+        // Handle messages from webview
+        this.panel.webview.onDidReceiveMessage(
+            async (message) => {
+                switch (message.command) {
+                    case 'saveAudio':
+                        await this.saveAudioFromDataUri(audioUrl);
+                        break;
+                    case 'askFollowUp':
+                        await this.handleFollowUpQuestion(message.followUpQuestion, selectedCode, language, editor);
+                        break;
+                    case 'copyAnswer':
+                        await vscode.env.clipboard.writeText(answer);
+                        vscode.window.showInformationMessage('Answer copied to clipboard!');
+                        break;
+                }
+            },
+            undefined,
+            this.context.subscriptions
+        );
+
+        console.log('✅ Interactive Q&A setup complete');
+    }
+
+    async showCodeGeneration(
+        request: string,
+        generatedCode: string,
+        explanation: string,
+        language: string,
+        audioUrl: string,
+        editor: vscode.TextEditor
+    ) {
+        this.currentEditor = editor;
+
+        console.log(`🎤 Showing code generation for: "${request.substring(0, 50)}..."`);
+
+        // Create or show webview panel
+        if (this.panel) {
+            this.panel.reveal(vscode.ViewColumn.Beside);
+        } else {
+            this.panel = vscode.window.createWebviewPanel(
+                'codeVoiceExplainer',
+                'Code Generation with Voice',
+                vscode.ViewColumn.Beside,
+                {
+                    enableScripts: true,
+                    localResourceRoots: [this.context.extensionUri],
+                    retainContextWhenHidden: true
+                }
+            );
+
+            // Handle panel disposal
+            this.panel.onDidDispose(() => {
+                this.panel = undefined;
+                this.currentEditor = undefined;
+            });
+        }
+
+        // Set webview content
+        this.panel.webview.html = this.getCodeGenerationWebviewContent(
+            request,
+            generatedCode,
+            explanation,
+            language,
+            audioUrl
+        );
+
+        // Handle messages from webview
+        this.panel.webview.onDidReceiveMessage(
+            async (message) => {
+                switch (message.command) {
+                    case 'saveAudio':
+                        await this.saveAudioFromDataUri(audioUrl);
+                        break;
+                    case 'copyCode':
+                        await vscode.env.clipboard.writeText(generatedCode);
+                        vscode.window.showInformationMessage('Generated code copied to clipboard!');
+                        break;
+                    case 'copyExplanation':
+                        await vscode.env.clipboard.writeText(explanation);
+                        vscode.window.showInformationMessage('Explanation copied to clipboard!');
+                        break;
+                    case 'generateMore':
+                        await this.handleGenerateMoreCode(message.newRequest, language, editor);
+                        break;
+                }
+            },
+            undefined,
+            this.context.subscriptions
+        );
+
+        console.log('✅ Code generation webview setup complete');
+    }
+
+    private async handleFollowUpQuestion(followUpQuestion: string, code: string, language: string, editor: vscode.TextEditor) {
+        try {
+            // Import CodeExplainer (avoiding circular dependency)
+            const { CodeExplainer } = await import('../services/codeExplainer');
+            const codeExplainer = new CodeExplainer();
+            
+            const fileName = editor.document.fileName;
+            const answer = await codeExplainer.answerCodeQuestion(code, language, fileName, followUpQuestion);
+            
+            // Import VoiceSynthesizer
+            const { VoiceSynthesizer } = await import('../services/voiceSynthesizer');
+            const voiceSynthesizer = new VoiceSynthesizer();
+            
+            const synthesisResult = await voiceSynthesizer.synthesizeSpeechWithTiming(answer);
+            const audioBase64 = synthesisResult.audioBuffer.toString('base64');
+            const audioDataUri = `data:audio/mpeg;base64,${audioBase64}`;
+            
+            // Show new Q&A
+            await this.showInteractiveQA(followUpQuestion, answer, code, language, audioDataUri, editor);
+            
+        } catch (error) {
+            console.error('Error in handleFollowUpQuestion:', error);
+            vscode.window.showErrorMessage(`Follow-up question error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    private async handleGenerateMoreCode(request: string, language: string, editor: vscode.TextEditor) {
+        try {
+            // Import CodeExplainer
+            const { CodeExplainer } = await import('../services/codeExplainer');
+            const codeExplainer = new CodeExplainer();
+            
+            const fileName = editor.document.fileName;
+            const generatedCode = await codeExplainer.generateCode(request, language, fileName);
+            const explanation = await codeExplainer.explainGeneratedCode(generatedCode, request, language);
+            
+            // Import VoiceSynthesizer
+            const { VoiceSynthesizer } = await import('../services/voiceSynthesizer');
+            const voiceSynthesizer = new VoiceSynthesizer();
+            
+            const synthesisResult = await voiceSynthesizer.synthesizeSpeechWithTiming(explanation);
+            const audioBase64 = synthesisResult.audioBuffer.toString('base64');
+            const audioDataUri = `data:audio/mpeg;base64,${audioBase64}`;
+            
+            // Insert the generated code
+            await editor.edit(editBuilder => {
+                editBuilder.insert(editor.selection.active, '\n\n' + generatedCode);
+            });
+            
+            // Show explanation
+            await this.showCodeGeneration(request, generatedCode, explanation, language, audioDataUri, editor);
+            
+        } catch (error) {
+            console.error('Error in handleGenerateMoreCode:', error);
+            vscode.window.showErrorMessage(`Code generation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    private getInteractiveQAWebviewContent(
+        question: string,
+        answer: string,
+        selectedCode: string,
+        language: string,
+        audioUrl: string
+    ): string {
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Code Q&A</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            border-bottom: 1px solid var(--vscode-panel-border);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0 0 10px 0;
+            color: var(--vscode-foreground);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .qa-badge {
+            background: linear-gradient(45deg, #2196F3, #03DAC6);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .question-section {
+            background: var(--vscode-panel-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .question-label {
+            font-weight: 600;
+            color: var(--vscode-foreground);
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .question-text {
+            font-size: 18px;
+            color: var(--vscode-textLink-foreground);
+            font-style: italic;
+        }
+        
+        .code-section {
+            background: var(--vscode-textCodeBlock-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .code-label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--vscode-foreground);
+        }
+        
+        .code-block {
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        
+        .answer-section {
+            background: var(--vscode-panel-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .answer-label {
+            font-weight: 600;
+            color: var(--vscode-foreground);
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .answer-text {
+            line-height: 1.8;
+            font-size: 16px;
+        }
+        
+        .audio-section {
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .audio-player {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+        
+        .btn.primary {
+            background: var(--vscode-textLink-foreground);
+            color: white;
+        }
+        
+        .btn.primary:hover {
+            opacity: 0.9;
+        }
+        
+        .followup-section {
+            background: linear-gradient(90deg, rgba(33, 150, 243, 0.1), rgba(3, 218, 198, 0.1));
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .followup-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .followup-input:focus {
+            outline: none;
+            border-color: var(--vscode-focusBorder);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">
+                🤔 Interactive Code Q&A
+                <span class="qa-badge">AI Powered</span>
+            </h1>
+        </div>
+        
+        <div class="question-section">
+            <div class="question-label">Your Question:</div>
+            <div class="question-text">"${question}"</div>
+        </div>
+        
+        <div class="code-section">
+            <div class="code-label">Code Context (${language}):</div>
+            <div class="code-block">${selectedCode}</div>
+        </div>
+        
+        <div class="answer-section">
+            <div class="answer-label">
+                🎓 AI Answer:
+                <button class="btn" onclick="copyAnswer()" style="margin-left: auto; font-size: 12px;">📋 Copy</button>
+            </div>
+            <div class="answer-text">${answer}</div>
+        </div>
+        
+        <div class="audio-section">
+            <h3>🎵 Listen to the Answer</h3>
+            <audio id="audioPlayer" class="audio-player" controls preload="auto">
+                <source src="${audioUrl}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+            
+            <div class="controls">
+                <button class="btn" onclick="saveAudio()">💾 Save Audio</button>
+                <button class="btn primary" onclick="document.getElementById('audioPlayer').play()">▶️ Play Answer</button>
+            </div>
+        </div>
+        
+        <div class="followup-section">
+            <h4>💬 Ask a Follow-up Question</h4>
+            <input type="text" class="followup-input" id="followupInput" 
+                   placeholder="e.g., 'What if the input is null?', 'How can I optimize this?', 'Are there any edge cases?'">
+            <button class="btn primary" onclick="askFollowUp()">🤔 Ask Follow-up</button>
+        </div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+
+        function copyAnswer() {
+            vscode.postMessage({ command: 'copyAnswer' });
+        }
+
+        function saveAudio() {
+            vscode.postMessage({ command: 'saveAudio' });
+        }
+
+        function askFollowUp() {
+            const input = document.getElementById('followupInput');
+            const question = input.value.trim();
+            
+            if (!question) {
+                alert('Please enter a question first!');
+                return;
+            }
+            
+            vscode.postMessage({ 
+                command: 'askFollowUp', 
+                followUpQuestion: question 
+            });
+            
+            input.value = '';
+        }
+
+        // Allow Enter key to ask follow-up
+        document.getElementById('followupInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                askFollowUp();
+            }
+        });
+
+        // Auto-focus on input
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('followupInput').focus();
+        });
+    </script>
+</body>
+</html>`;
+    }
+
+    private getCodeGenerationWebviewContent(
+        request: string,
+        generatedCode: string,
+        explanation: string,
+        language: string,
+        audioUrl: string
+    ): string {
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Generation with Voice</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            border-bottom: 1px solid var(--vscode-panel-border);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0 0 10px 0;
+            color: var(--vscode-foreground);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .gen-badge {
+            background: linear-gradient(45deg, #FF6B35, #F7931E);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .request-section {
+            background: var(--vscode-panel-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .request-label {
+            font-weight: 600;
+            color: var(--vscode-foreground);
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .request-text {
+            font-size: 18px;
+            color: var(--vscode-textLink-foreground);
+            font-style: italic;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .code-section {
+            background: var(--vscode-textCodeBlock-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .code-label {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--vscode-foreground);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .code-block {
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .explanation-section {
+            background: var(--vscode-panel-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .explanation-text {
+            line-height: 1.8;
+            font-size: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .audio-section {
+            background: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .audio-player {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+        
+        .btn.primary {
+            background: var(--vscode-textLink-foreground);
+            color: white;
+        }
+        
+        .btn.primary:hover {
+            opacity: 0.9;
+        }
+        
+        .more-section {
+            background: linear-gradient(90deg, rgba(255, 107, 53, 0.1), rgba(247, 147, 30, 0.1));
+            border-left: 4px solid #FF6B35;
+            padding: 15px;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .more-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .more-input:focus {
+            outline: none;
+            border-color: var(--vscode-focusBorder);
+        }
+        
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .controls { flex-direction: column; }
+            .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">
+                🎤 Code Generation with Voice
+                <span class="gen-badge">AI Generated</span>
+            </h1>
+        </div>
+        
+        <div class="request-section">
+            <div class="request-label">Your Request:</div>
+            <div class="request-text">"${request}"</div>
+        </div>
+        
+        <div class="grid">
+            <div class="code-section">
+                <div class="code-label">
+                    💻 Generated Code (${language}):
+                    <button class="btn" onclick="copyCode()" style="margin-left: auto; font-size: 12px;">📋 Copy</button>
+                </div>
+                <div class="code-block">${generatedCode}</div>
+            </div>
+            
+            <div class="explanation-section">
+                <div class="code-label">
+                    📖 Explanation:
+                    <button class="btn" onclick="copyExplanation()" style="margin-left: auto; font-size: 12px;">📋 Copy</button>
+                </div>
+                <div class="explanation-text">${explanation}</div>
+            </div>
+        </div>
+        
+        <div class="audio-section">
+            <h3>🎵 Listen to the Explanation</h3>
+            <audio id="audioPlayer" class="audio-player" controls preload="auto">
+                <source src="${audioUrl}" type="audio/mpeg">
+                Your browser does not support the audio element.
+            </audio>
+            
+            <div class="controls">
+                <button class="btn" onclick="saveAudio()">💾 Save Audio</button>
+                <button class="btn primary" onclick="document.getElementById('audioPlayer').play()">▶️ Play Explanation</button>
+            </div>
+        </div>
+        
+        <div class="more-section">
+            <h4>🚀 Generate More Code</h4>
+            <input type="text" class="more-input" id="moreInput" 
+                   placeholder="e.g., 'Add error handling', 'Create unit tests', 'Add documentation'">
+            <button class="btn primary" onclick="generateMore()">🎤 Generate More</button>
+        </div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+
+        function copyCode() {
+            vscode.postMessage({ command: 'copyCode' });
+        }
+
+        function copyExplanation() {
+            vscode.postMessage({ command: 'copyExplanation' });
+        }
+
+        function saveAudio() {
+            vscode.postMessage({ command: 'saveAudio' });
+        }
+
+        function generateMore() {
+            const input = document.getElementById('moreInput');
+            const request = input.value.trim();
+            
+            if (!request) {
+                alert('Please enter a request first!');
+                return;
+            }
+            
+            vscode.postMessage({ 
+                command: 'generateMore', 
+                newRequest: request 
+            });
+            
+            input.value = '';
+        }
+
+        // Allow Enter key to generate more
+        document.getElementById('moreInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                generateMore();
+            }
+        });
+
+        // Auto-play on load (if browser allows)
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.getElementById('audioPlayer').play().catch(e => {
+                    console.log('Auto-play prevented by browser:', e);
+                });
+            }, 500);
+        });
+    </script>
+</body>
+</html>`;
+    }
+
     dispose() {
         if (this.panel) {
             this.panel.dispose();

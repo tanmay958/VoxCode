@@ -108,11 +108,11 @@ export class IntelligentTimelineGenerator {
                 explanation
             );
 
-            console.log(`✅ Intelligent timeline created: ${intelligentTimeline.frames.length} frames`);
+            console.log(`Intelligent timeline created: ${intelligentTimeline.frames.length} frames`);
             return intelligentTimeline;
 
         } catch (error) {
-            console.error('❌ Error generating intelligent timeline:', error);
+            console.error('Error generating intelligent timeline:', error);
             throw new Error(`Failed to generate intelligent timeline: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }

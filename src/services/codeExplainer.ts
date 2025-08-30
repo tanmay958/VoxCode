@@ -680,4 +680,333 @@ ${indexedCode.codeWithIds}`;
             .replace(/\s+/g, ' ')
             .trim();
     }
+
+    // === NEW Q&A AND CODE GENERATION METHODS ===
+    
+    async answerCodeQuestion(code: string, language: string, fileName: string, question: string): Promise<string> {
+        if (!this.apiKey) {
+            throw new Error('OpenAI API key not configured');
+        }
+
+        const config = vscode.workspace.getConfiguration('codeVoiceExplainer');
+        const selectedVoiceId = config.get<string>('murfVoiceId') || 'en-US-natalie';
+        const voiceLanguageInfo = VOICE_LANGUAGE_MAP[selectedVoiceId];
+        const targetLanguage = voiceLanguageInfo ? voiceLanguageInfo.language : 'English';
+        const languageName = voiceLanguageInfo ? voiceLanguageInfo.languageName : 'English (US)';
+
+        console.log(`🤔 Answering question in ${targetLanguage} for voice: ${selectedVoiceId}`);
+
+        const systemPrompt = this.buildQASystemPrompt(targetLanguage, languageName);
+        const userPrompt = this.buildQAPrompt(code, language, fileName, question, targetLanguage);
+
+        try {
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: 'gpt-4',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: systemPrompt
+                        },
+                        {
+                            role: 'user',
+                            content: userPrompt
+                        }
+                    ],
+                    max_tokens: 800,
+                    temperature: 0.5
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            const answer = response.data.choices[0]?.message?.content;
+            if (!answer) {
+                throw new Error('No answer received from OpenAI');
+            }
+
+            console.log(`✅ Generated Q&A answer: ${answer.substring(0, 100)}...`);
+            return answer;
+        } catch (error) {
+            console.error('Error in answerCodeQuestion:', error);
+            if (axios.isAxiosError(error)) {
+                const statusCode = error.response?.status;
+                const errorMessage = error.response?.data?.error?.message || error.message;
+                
+                if (statusCode === 401) {
+                    throw new Error('Invalid OpenAI API key. Please check your configuration.');
+                } else if (statusCode === 429) {
+                    throw new Error('OpenAI API rate limit exceeded. Please try again later.');
+                } else {
+                    throw new Error(`OpenAI API error: ${errorMessage}`);
+                }
+            }
+            throw new Error('Failed to answer question. Please try again.');
+        }
+    }
+
+    async generateCode(request: string, language: string, fileName: string): Promise<string> {
+        if (!this.apiKey) {
+            throw new Error('OpenAI API key not configured');
+        }
+
+        console.log(`🎤 Generating ${language} code for request: "${request}"`);
+
+        const systemPrompt = this.buildCodeGenSystemPrompt();
+        const userPrompt = this.buildCodeGenPrompt(request, language, fileName);
+
+        try {
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: 'gpt-4',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: systemPrompt
+                        },
+                        {
+                            role: 'user',
+                            content: userPrompt
+                        }
+                    ],
+                    max_tokens: 1200,
+                    temperature: 0.3
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            const generatedCode = response.data.choices[0]?.message?.content;
+            if (!generatedCode) {
+                throw new Error('No code generated from OpenAI');
+            }
+
+            console.log(`✅ Generated code: ${generatedCode.substring(0, 100)}...`);
+            return generatedCode;
+        } catch (error) {
+            console.error('Error in generateCode:', error);
+            if (axios.isAxiosError(error)) {
+                const statusCode = error.response?.status;
+                const errorMessage = error.response?.data?.error?.message || error.message;
+                
+                if (statusCode === 401) {
+                    throw new Error('Invalid OpenAI API key. Please check your configuration.');
+                } else if (statusCode === 429) {
+                    throw new Error('OpenAI API rate limit exceeded. Please try again later.');
+                } else {
+                    throw new Error(`OpenAI API error: ${errorMessage}`);
+                }
+            }
+            throw new Error('Failed to generate code. Please try again.');
+        }
+    }
+
+    async explainGeneratedCode(generatedCode: string, originalRequest: string, language: string): Promise<string> {
+        if (!this.apiKey) {
+            throw new Error('OpenAI API key not configured');
+        }
+
+        const config = vscode.workspace.getConfiguration('codeVoiceExplainer');
+        const selectedVoiceId = config.get<string>('murfVoiceId') || 'en-US-natalie';
+        const voiceLanguageInfo = VOICE_LANGUAGE_MAP[selectedVoiceId];
+        const targetLanguage = voiceLanguageInfo ? voiceLanguageInfo.language : 'English';
+        const languageName = voiceLanguageInfo ? voiceLanguageInfo.languageName : 'English (US)';
+
+        console.log(`📖 Explaining generated code in ${targetLanguage}`);
+
+        const systemPrompt = this.buildGeneratedCodeExplanationSystemPrompt(targetLanguage, languageName);
+        const userPrompt = this.buildGeneratedCodeExplanationPrompt(generatedCode, originalRequest, language, targetLanguage);
+
+        try {
+            const response = await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                    model: 'gpt-4',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: systemPrompt
+                        },
+                        {
+                            role: 'user',
+                            content: userPrompt
+                        }
+                    ],
+                    max_tokens: 1000,
+                    temperature: 0.4
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            const explanation = response.data.choices[0]?.message?.content;
+            if (!explanation) {
+                throw new Error('No explanation received from OpenAI');
+            }
+
+            console.log(`✅ Generated code explanation: ${explanation.substring(0, 100)}...`);
+            return explanation;
+        } catch (error) {
+            console.error('Error in explainGeneratedCode:', error);
+            if (axios.isAxiosError(error)) {
+                const statusCode = error.response?.status;
+                const errorMessage = error.response?.data?.error?.message || error.message;
+                
+                if (statusCode === 401) {
+                    throw new Error('Invalid OpenAI API key. Please check your configuration.');
+                } else if (statusCode === 429) {
+                    throw new Error('OpenAI API rate limit exceeded. Please try again later.');
+                } else {
+                    throw new Error(`OpenAI API error: ${errorMessage}`);
+                }
+            }
+            throw new Error('Failed to explain generated code. Please try again.');
+        }
+    }
+
+    // === HELPER METHODS FOR Q&A AND CODE GENERATION ===
+
+    private buildQASystemPrompt(targetLanguage: string, languageName: string): string {
+        if (targetLanguage === 'English') {
+            return `You are an expert programming mentor who answers code questions in a natural, conversational way. 
+
+Your role is to:
+- Answer specific questions about the provided code
+- Explain potential issues, optimizations, or edge cases
+- Provide practical insights and suggestions
+- Be encouraging and educational
+- Keep responses focused and relevant to the question
+
+Respond as if you're having a friendly conversation with a developer who wants to understand their code better.`;
+        }
+        
+        const languageInstructions = {
+            'Spanish': 'Eres un mentor experto en programación que responde preguntas sobre código de manera natural y conversacional. Debes responder completamente en español de forma amigable y educativa.',
+            'French': 'Vous êtes un mentor expert en programmation qui répond aux questions sur le code de manière naturelle et conversationnelle. Vous devez répondre entièrement en français de manière amicale et éducative.',
+            'German': 'Sie sind ein erfahrener Programmiermentor, der Fragen zum Code auf natürliche, gesprächige Weise beantwortet. Sie müssen vollständig auf Deutsch freundlich und lehrreich antworten.',
+            'Italian': 'Sei un mentore esperto di programmazione che risponde alle domande sul codice in modo naturale e colloquiale. Devi rispondere completamente in italiano in modo amichevole ed educativo.',
+            'Portuguese': 'Você é um mentor especialista em programação que responde perguntas sobre código de forma natural e conversacional. Você deve responder completamente em português de forma amigável e educativa.'
+        };
+        
+        return languageInstructions[targetLanguage as keyof typeof languageInstructions] || 
+               `You are an expert programming mentor. IMPORTANT: You must respond entirely in ${targetLanguage} (${languageName}). Answer code questions in a natural, conversational way.`;
+    }
+
+    private buildQAPrompt(code: string, language: string, fileName: string, question: string, targetLanguage: string): string {
+        if (targetLanguage === 'English') {
+            return `I have a question about this ${language} code from "${fileName}":
+
+QUESTION: ${question}
+
+CODE:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Please provide a clear, conversational answer that addresses my specific question. Focus on the relevant parts of the code and explain in a way that's easy to understand.`;
+        } else {
+            return `Tengo una pregunta sobre este código ${language} del archivo "${fileName}":
+
+PREGUNTA: ${question}
+
+CÓDIGO:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Por favor proporciona una respuesta clara y conversacional que aborde mi pregunta específica. IMPORTANTE: Responde completamente en ${targetLanguage}.`;
+        }
+    }
+
+    private buildCodeGenSystemPrompt(): string {
+        return `You are an expert code generator. Your role is to:
+
+1. Generate clean, well-structured, production-ready code
+2. Follow best practices and conventions for the target language
+3. Include appropriate comments for clarity
+4. Handle edge cases and errors when relevant
+5. Write code that is maintainable and efficient
+
+Generate ONLY the code requested - no extra explanations or markdown formatting around the code block.`;
+    }
+
+    private buildCodeGenPrompt(request: string, language: string, fileName: string): string {
+        return `Generate ${language} code for the following request:
+
+REQUEST: ${request}
+
+Context: This code will be used in "${fileName}"
+
+Requirements:
+- Write clean, production-ready code
+- Follow ${language} best practices and conventions
+- Include helpful comments
+- Handle potential edge cases
+- Make the code maintainable and efficient
+
+Generate ONLY the code - no explanations or markdown formatting.`;
+    }
+
+    private buildGeneratedCodeExplanationSystemPrompt(targetLanguage: string, languageName: string): string {
+        if (targetLanguage === 'English') {
+            return `You are an expert programming teacher explaining newly generated code. 
+
+Your role is to:
+- Explain how the generated code works step by step
+- Highlight key features and design decisions
+- Mention best practices that were applied
+- Be conversational and educational
+- Help the user understand what was created and why
+
+Explain as if you're walking through the code with a colleague.`;
+        }
+        
+        const languageInstructions = {
+            'Spanish': 'Eres un profesor experto en programación que explica código recién generado. Explica paso a paso cómo funciona el código de manera conversacional y educativa. Responde completamente en español.',
+            'French': 'Vous êtes un professeur expert en programmation qui explique le code nouvellement généré. Expliquez étape par étape comment le code fonctionne de manière conversationnelle et éducative. Répondez entièrement en français.',
+            'German': 'Sie sind ein erfahrener Programmierlehrer, der neu generierten Code erklärt. Erklären Sie Schritt für Schritt, wie der Code funktioniert, auf gesprächige und lehrreiche Weise. Antworten Sie vollständig auf Deutsch.',
+            'Italian': 'Sei un insegnante esperto di programmazione che spiega il codice appena generato. Spiega passo dopo passo come funziona il codice in modo colloquiale ed educativo. Rispondi completamente in italiano.'
+        };
+        
+        return languageInstructions[targetLanguage as keyof typeof languageInstructions] || 
+               `You are an expert programming teacher. IMPORTANT: You must respond entirely in ${targetLanguage} (${languageName}). Explain the generated code step by step in a conversational way.`;
+    }
+
+    private buildGeneratedCodeExplanationPrompt(generatedCode: string, originalRequest: string, language: string, targetLanguage: string): string {
+        if (targetLanguage === 'English') {
+            return `I requested: "${originalRequest}"
+
+Here's the ${language} code that was generated:
+
+\`\`\`${language}
+${generatedCode}
+\`\`\`
+
+Please explain how this code works, walking through the key parts and highlighting what makes it effective. Be conversational and educational.`;
+        } else {
+            return `Solicité: "${originalRequest}"
+
+Aquí está el código ${language} que se generó:
+
+\`\`\`${language}
+${generatedCode}
+\`\`\`
+
+Por favor explica cómo funciona este código, revisando las partes clave. IMPORTANTE: Responde completamente en ${targetLanguage} de manera conversacional y educativa.`;
+        }
+    }
 }
