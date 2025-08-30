@@ -1,3 +1,5 @@
+![VoxCode Banner](image.png)
+
 # 🎤 VoxCode: Code Voice Explainer - Hackathon MVP
 
 A revolutionary VSCode extension that brings AI-powered voice interaction to coding. Explain code, ask questions, and generate code using natural language - all with multilingual voice support!

@@ -1,29 +1,16 @@
-// Demo JavaScript code for testing Voice Explainer
-// Select this function and right-click to "Explain Selected Code with Voice"
+let age = 20;
+let hasID = true;
 
-function calculateTotal(items) {
-    let total = 0;
-    
-    // Loop through each item
-    for (const item of items) {
-        // Add item price multiplied by quantity
-        total += item.price * item.quantity;
+if (age >= 18) {
+    if (hasID) {
+        console.log("You are allowed to enter.");
+    } else {
+        console.log("You need an ID to enter.");
     }
-    
-    // Apply 10% discount if total is over $100
-    if (total > 100) {
-        total = total * 0.9;
+} else {
+    if (age < 13) {
+        console.log("Sorry, you are too young to enter.");
+    } else {
+        console.log("You must be at least 18 to enter.");
     }
-    
-    return total;
 }
-
-// Test with sample data
-const shoppingCart = [
-    { name: "Laptop", price: 999, quantity: 1 },
-    { name: "Mouse", price: 25, quantity: 2 },
-    { name: "Keyboard", price: 75, quantity: 1 }
-];
-
-const finalTotal = calculateTotal(shoppingCart);
-console.log(`Total: $${finalTotal.toFixed(2)}`);

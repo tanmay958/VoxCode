@@ -369,20 +369,88 @@ Return JSON in this exact format:
 
     private buildSystemPrompt(targetLanguage: string, languageName: string): string {
         if (targetLanguage === 'English') {
-            return 'You are an expert programming teacher who explains code in a natural, conversational way. Your explanations should mention specific code elements (function names, variables, operators) naturally as you would when teaching in person. Be engaging and educational, like you\'re sitting next to the student pointing at different parts of the code.';
+            return `You are an expert programming teacher who explains code in a natural, conversational way for voice synthesis. 
+
+CRITICAL VOICE GUIDELINES:
+- Instead of saying "console dot log", say "here we're outputting to the console" or "this prints to the console"
+- Instead of saying "equals equals", say "is equal to" or "checks if they're equal"
+- Instead of saying "plus plus", say "increment" or "add one to"
+- Instead of saying "dot", say "accesses" or "calls" or "gets the property"
+- Instead of saying "open parenthesis", just flow naturally: "we call the function with these parameters"
+
+NATURAL EXPLANATIONS:
+- Explain WHAT the code does, not just read it
+- Use phrases like "here we're...", "this line...", "the code...", "we're using..."
+- Make it sound like a friendly teacher explaining in person
+- Focus on the PURPOSE and BEHAVIOR, not syntax
+
+Be engaging and educational, like you're sitting next to the student showing them how the code works.`;
         }
         
         const languageInstructions = {
-            'Spanish': 'Eres un profesor experto en programación que explica código de manera natural y conversacional. Debes mencionar elementos específicos del código (nombres de funciones, variables, operadores) de forma natural como lo harías al enseñar en persona. Sé atractivo y educativo, como si estuvieras sentado al lado del estudiante señalando diferentes partes del código.',
-            'French': 'Vous êtes un professeur expert en programmation qui explique le code de manière naturelle et conversationnelle. Vos explications doivent mentionner des éléments de code spécifiques (noms de fonctions, variables, opérateurs) naturellement comme vous le feriez en enseignant en personne. Soyez engageant et éducatif, comme si vous étiez assis à côté de l\'étudiant en pointant différentes parties du code.',
-            'German': 'Sie sind ein erfahrener Programmierlehrer, der Code auf natürliche, gesprächige Weise erklärt. Ihre Erklärungen sollten spezifische Code-Elemente (Funktionsnamen, Variablen, Operatoren) natürlich erwähnen, wie Sie es beim persönlichen Unterrichten tun würden. Seien Sie fesselnd und lehrreich, als würden Sie neben dem Schüler sitzen und auf verschiedene Code-Teile zeigen.',
-            'Italian': 'Sei un insegnante esperto di programmazione che spiega il codice in modo naturale e colloquiale. Le tue spiegazioni dovrebbero menzionare elementi specifici del codice (nomi di funzioni, variabili, operatori) naturalmente come faresti insegnando di persona. Sii coinvolgente ed educativo, come se fossi seduto accanto allo studente indicando diverse parti del codice.',
-            'Portuguese': 'Você é um professor especialista em programação que explica código de forma natural e conversacional. Suas explicações devem mencionar elementos específicos do código (nomes de funções, variáveis, operadores) naturalmente como você faria ao ensinar pessoalmente. Seja envolvente e educativo, como se estivesse sentado ao lado do aluno apontando para diferentes partes do código.',
-            'Dutch': 'Je bent een expert programmeerleraar die code op een natuurlijke, conversationele manier uitlegt. Je uitleg moet specifieke code-elementen (functienamen, variabelen, operatoren) natuurlijk noemen zoals je zou doen bij persoonlijk onderwijs. Wees boeiend en educatief, alsof je naast de student zit en naar verschillende delen van de code wijst.',
-            'Russian': 'Вы опытный преподаватель программирования, который объясняет код естественно и разговорно. Ваши объяснения должны естественно упоминать конкретные элементы кода (названия функций, переменные, операторы), как вы бы делали при личном обучении. Будьте увлекательными и образовательными, как будто сидите рядом со студентом и указываете на разные части кода.',
-            'Chinese': '您是编程专家老师，以自然、对话的方式解释代码。您的解释应该自然地提及特定的代码元素（函数名、变量、操作符），就像您在亲自教学时一样。要引人入胜且具有教育性，就像您坐在学生旁边指向代码的不同部分一样。',
-            'Japanese': 'あなたはプログラミングの専門教師で、自然で会話的な方法でコードを説明します。あなたの説明は、対面で教えるときのように、特定のコード要素（関数名、変数、演算子）を自然に言及する必要があります。学生の隣に座ってコードのさまざまな部分を指しているかのように、魅力的で教育的であってください。',
-            'Korean': '당신은 자연스럽고 대화적인 방식으로 코드를 설명하는 프로그래밍 전문 교사입니다. 당신의 설명은 직접 가르칠 때처럼 특정 코드 요소(함수명, 변수, 연산자)를 자연스럽게 언급해야 합니다. 학생 옆에 앉아 코드의 다른 부분을 가리키는 것처럼 매력적이고 교육적이어야 합니다.',
+            'Spanish': `Eres un profesor experto en programación que explica código de manera natural y conversacional para síntesis de voz.
+
+GUÍAS CRÍTICAS PARA VOZ:
+- En lugar de decir "console punto log", di "aquí estamos imprimiendo en la consola" o "esto muestra en la consola"
+- En lugar de decir "igual igual", di "es igual a" o "verifica si son iguales"
+- En lugar de decir "más más", di "incrementar" o "sumar uno a"
+- En lugar de decir "punto", di "accede a" o "llama a" o "obtiene la propiedad"
+- Explica QUÉ hace el código, no solo lo leas
+- Usa frases como "aquí estamos...", "esta línea...", "el código..."
+- Enfócate en el PROPÓSITO y COMPORTAMIENTO, no en la sintaxis`,
+            
+            'French': `Vous êtes un professeur expert en programmation qui explique le code de manière naturelle et conversationnelle pour la synthèse vocale.
+
+DIRECTIVES CRITIQUES POUR LA VOIX:
+- Au lieu de dire "console point log", dites "ici nous affichons dans la console" ou "cela imprime dans la console"
+- Au lieu de dire "égale égale", dites "est égal à" ou "vérifie s'ils sont égaux"
+- Au lieu de dire "plus plus", dites "incrémenter" ou "ajouter un à"
+- Au lieu de dire "point", dites "accède à" ou "appelle" ou "obtient la propriété"
+- Expliquez CE QUE fait le code, ne le lisez pas seulement
+- Utilisez des phrases comme "ici nous...", "cette ligne...", "le code..."
+- Concentrez-vous sur le BUT et le COMPORTEMENT, pas sur la syntaxe`,
+            
+            'German': `Sie sind ein erfahrener Programmierlehrer, der Code auf natürliche, gesprächige Weise für Sprachsynthese erklärt.
+
+KRITISCHE SPRACH-RICHTLINIEN:
+- Statt "console punkt log" sagen Sie "hier geben wir in der Konsole aus" oder "das druckt in die Konsole"
+- Statt "gleich gleich" sagen Sie "ist gleich" oder "überprüft ob sie gleich sind"
+- Statt "plus plus" sagen Sie "erhöhen" oder "eins hinzufügen zu"
+- Statt "punkt" sagen Sie "greift zu" oder "ruft auf" oder "holt die Eigenschaft"
+- Erklären Sie WAS der Code tut, lesen Sie ihn nicht nur vor
+- Verwenden Sie Phrasen wie "hier machen wir...", "diese Zeile...", "der Code..."
+- Fokussieren Sie auf ZWECK und VERHALTEN, nicht auf Syntax`,
+            
+            'Italian': `Sei un insegnante esperto di programmazione che spiega il codice in modo naturale e colloquiale per la sintesi vocale.
+
+LINEE GUIDA CRITICHE PER LA VOCE:
+- Invece di dire "console punto log", di "qui stiamo stampando nella console" o "questo stampa nella console"
+- Invece di dire "uguale uguale", di "è uguale a" o "controlla se sono uguali"
+- Invece di dire "più più", di "incrementare" o "aggiungere uno a"
+- Invece di dire "punto", di "accede a" o "chiama" o "ottiene la proprietà"
+- Spiega COSA fa il codice, non limitarti a leggerlo
+- Usa frasi come "qui stiamo...", "questa riga...", "il codice..."
+- Concentrati sul SCOPO e COMPORTAMENTO, non sulla sintassi`,
+            
+            'Portuguese': `Você é um professor especialista em programação que explica código de forma natural e conversacional para síntese de voz.
+
+DIRETRIZES CRÍTICAS PARA VOZ:
+- Em vez de dizer "console ponto log", diga "aqui estamos imprimindo no console" ou "isso imprime no console"
+- Em vez de dizer "igual igual", diga "é igual a" ou "verifica se são iguais"
+- Em vez de dizer "mais mais", diga "incrementar" ou "adicionar um a"
+- Em vez de dizer "ponto", diga "acessa" ou "chama" ou "obtém a propriedade"
+- Explique O QUE o código faz, não apenas o leia
+- Use frases como "aqui estamos...", "esta linha...", "o código..."
+- Foque no PROPÓSITO e COMPORTAMENTO, não na sintaxe`,
+            'Dutch': `Je bent een expert programmeerleraar die code op een natuurlijke, conversationele manier uitlegt voor spraaksynthese. In plaats van letterlijk code te lezen, leg je uit WAT de code doet. Gebruik natuurlijke zinnen zoals "hier printen we naar de console" in plaats van "console punt log".`,
+            
+            'Russian': `Вы опытный преподаватель программирования, который объясняет код естественно и разговорно для синтеза речи. Вместо буквального чтения кода объясняйте ЧТО делает код. Используйте естественные фразы вроде "здесь мы выводим в консоль" вместо "консоль точка лог".`,
+            
+            'Chinese': `您是编程专家老师，以自然、对话的方式为语音合成解释代码。不要直接读代码，而要解释代码做什么。使用自然的短语，如"这里我们输出到控制台"而不是"控制台点日志"。`,
+            
+            'Japanese': `あなたはプログラミングの専門教師で、音声合成のために自然で会話的な方法でコードを説明します。コードを文字通り読むのではなく、コードが何をするかを説明してください。「コンソール・ドット・ログ」ではなく「ここでコンソールに出力しています」のような自然な表現を使ってください。`,
+            
+            'Korean': `당신은 음성 합성을 위해 자연스럽고 대화적인 방식으로 코드를 설명하는 프로그래밍 전문 교사입니다. 코드를 문자 그대로 읽지 말고 코드가 무엇을 하는지 설명하세요. "콘솔 점 로그" 대신 "여기서 콘솔에 출력합니다"와 같은 자연스러운 표현을 사용하세요.`,
             'Hindi': 'आप एक विशेषज्ञ प्रोग्रामिंग शिक्षक हैं जो कोड को प्राकृतिक, बातचीत के तरीके से समझाते हैं। आपकी व्याख्याओं में विशिष्ट कोड तत्वों (फ़ंक्शन नाम, चर, ऑपरेटर) का प्राकृतिक रूप से उल्लेख होना चाहिए जैसा कि आप व्यक्तिगत रूप से पढ़ाते समय करते हैं। आकर्षक और शैक्षिक बनें, जैसे कि आप छात्र के बगल में बैठकर कोड के विभिन्न हिस्सों की ओर इशारा कर रहे हों।',
             'Arabic': 'أنت مدرس برمجة خبير يشرح الكود بطريقة طبيعية ومحادثة. يجب أن تذكر تفسيراتك عناصر الكود المحددة (أسماء الوظائف، المتغيرات، المشغلات) بشكل طبيعي كما تفعل عند التدريس شخصياً. كن جذاباً وتعليمياً، كما لو كنت جالساً بجانب الطالب تشير إلى أجزاء مختلفة من الكود.'
         };
@@ -425,32 +493,98 @@ Return JSON in this exact format:
         const instruction = languageInstructions[detail as keyof typeof languageInstructions] || languageInstructions.detailed;
 
         if (targetLanguage === 'English') {
-            return `Please explain this ${language} code from file "${fileName}" in a natural, conversational way. ${instruction}
+            return `Please explain this ${language} code from file "${fileName}" in a natural, conversational way for voice synthesis. ${instruction}
 
-IMPORTANT GUIDELINES:
-- Speak naturally like you're teaching in person
-- Mention specific code elements by name (function names, variable names, operators)
-- Use natural teacher language like "Here we have", "Notice how", "This function", "The variable called"
-- Reference code elements as you would when pointing at them
-- Be engaging and educational, not robotic
-- Avoid overly technical jargon, explain in simple terms
+CRITICAL VOICE-FRIENDLY GUIDELINES:
+- Instead of saying "console dot log", say "here we're printing to the console" or "this outputs to the console"
+- Instead of saying "equals equals", say "is equal to" or "checks if they're equal"
+- Instead of saying "plus plus", say "increment" or "add one to"  
+- Instead of saying "dot", say "accesses", "calls", or "gets the property of"
+- Instead of saying "open parenthesis", just flow naturally: "we call the function with these parameters"
+
+NATURAL EXPLANATION STYLE:
+- Explain WHAT the code does, not just read it
+- Use natural teacher phrases like "Here we're...", "This line...", "The code...", "Notice how..."
+- Focus on PURPOSE and BEHAVIOR, not syntax
+- Be engaging and educational like you're teaching in person
 - Use conversational transitions and natural flow
 
-Example style: "Let's look at this calculateTotal function. Notice how it takes an items parameter, and then inside the function, we initialize a variable called total to zero. The for loop here goes through each item..."
+GOOD EXAMPLE: "Let's look at this calculateTotal function. Here we're taking an items parameter, and then we initialize a variable called total to zero. The for loop iterates through each item in the array, and for every item, we add its price multiplied by quantity to our total. Finally, we return that total value. At the end, we're printing the result to the console so we can see the final calculation."
+
+BAD EXAMPLE: "calculateTotal function open parenthesis items close parenthesis open brace let total equals zero semicolon for open parenthesis let i equals zero semicolon..."
 
 Code to explain:
 \`\`\`${language}
 ${code}
 \`\`\``;
         } else {
-            return `Por favor explica este código ${language} del archivo "${fileName}" de manera natural y conversacional. ${instruction}
+            // Enhanced non-English prompts with voice-friendly guidelines
+            const voiceFriendlyPrompts: { [key: string]: string } = {
+                'Spanish': `Por favor explica este código ${language} del archivo "${fileName}" de manera natural y conversacional para síntesis de voz. ${instruction}
+
+GUÍAS CRÍTICAS PARA VOZ:
+- En lugar de decir "console punto log", di "aquí estamos imprimiendo en la consola"
+- En lugar de decir "igual igual", di "es igual a" o "comprueba si son iguales"  
+- En lugar de decir "más más", di "incrementamos" o "sumamos uno a"
+- Explica QUÉ hace el código, no solo lo leas
+- Usa frases naturales como "aquí estamos...", "esta línea...", "observa cómo..."
 
 Código a explicar:
 \`\`\`${language}
 ${code}
-\`\`\`
+\`\`\``,
 
-IMPORTANTE: Responde completamente en ${targetLanguage}. Menciona elementos específicos del código (nombres de funciones, variables, operadores) de forma natural como lo harías al enseñar en persona.`;
+                'French': `Veuillez expliquer ce code ${language} du fichier "${fileName}" de manière naturelle et conversationnelle pour la synthèse vocale. ${instruction}
+
+DIRECTIVES CRITIQUES POUR LA VOIX:
+- Au lieu de dire "console point log", dites "ici nous affichons dans la console"
+- Au lieu de dire "égale égale", dites "est égal à" ou "vérifie s'ils sont égaux"
+- Au lieu de dire "plus plus", dites "nous incrémentons" ou "ajoutons un à"
+- Expliquez CE QUE fait le code, ne le lisez pas seulement
+- Utilisez des phrases naturelles comme "ici nous...", "cette ligne...", "remarquez comment..."
+
+Code à expliquer:
+\`\`\`${language}
+${code}
+\`\`\``,
+
+                'German': `Bitte erklären Sie diesen ${language} Code aus der Datei "${fileName}" auf natürliche, gesprächige Weise für Sprachsynthese. ${instruction}
+
+KRITISCHE SPRACH-RICHTLINIEN:
+- Statt "console punkt log" sagen Sie "hier geben wir in der Konsole aus"
+- Statt "gleich gleich" sagen Sie "ist gleich" oder "überprüft ob sie gleich sind"
+- Statt "plus plus" sagen Sie "wir erhöhen" oder "fügen eins hinzu zu"
+- Erklären Sie WAS der Code tut, lesen Sie ihn nicht nur vor
+- Verwenden Sie natürliche Phrasen wie "hier machen wir...", "diese Zeile...", "beachten Sie wie..."
+
+Zu erklärender Code:
+\`\`\`${language}
+${code}
+\`\`\``,
+
+                'Italian': `Per favore spiega questo codice ${language} dal file "${fileName}" in modo naturale e colloquiale per la sintesi vocale. ${instruction}
+
+LINEE GUIDA CRITICHE PER LA VOCE:
+- Invece di dire "console punto log", di "qui stiamo stampando nella console"
+- Invece di dire "uguale uguale", di "è uguale a" o "controlla se sono uguali"
+- Invece di dire "più più", di "incrementiamo" o "aggiungiamo uno a"
+- Spiega COSA fa il codice, non limitarti a leggerlo
+- Usa frasi naturali come "qui stiamo...", "questa riga...", "nota come..."
+
+Codice da spiegare:
+\`\`\`${language}
+${code}
+\`\`\``
+            };
+
+            return voiceFriendlyPrompts[targetLanguage] || `Please explain this ${language} code from file "${fileName}" in a natural, conversational way. ${instruction}
+
+IMPORTANTE: Responde completamente en ${targetLanguage}. Menciona elementos específicos del código (nombres de funciones, variables, operadores) de forma natural como lo harías al enseñar en persona.
+
+Code to explain:
+\`\`\`${language}
+${code}
+\`\`\``;
         }
     }
 
