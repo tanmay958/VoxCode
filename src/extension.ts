@@ -40,8 +40,12 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand('workbench.action.openSettings', 'codeVoiceExplainer');
     });
 
+    const selectVoiceCommand = vscode.commands.registerCommand('codeVoiceExplainer.selectVoice', async () => {
+        await selectVoiceLanguage();
+    });
+
     // Add commands to subscriptions
-    context.subscriptions.push(explainCodeCommand, explainSelectionCommand, openSettingsCommand);
+    context.subscriptions.push(explainCodeCommand, explainSelectionCommand, openSettingsCommand, selectVoiceCommand);
 
     // Show welcome message
     vscode.window.showInformationMessage('Code Voice Explainer is ready! Right-click on code to explain it with voice.');
@@ -208,6 +212,153 @@ async function processCodeExplanation(
     } catch (error) {
         console.error('Error in processCodeExplanation:', error);
         vscode.window.showErrorMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+
+async function selectVoiceLanguage() {
+    const config = vscode.workspace.getConfiguration('codeVoiceExplainer');
+    
+    // Voice categories based on Murf.ai Voice Library
+    const voiceCategories = [
+        {
+            category: '🇺🇸 English (US)',
+            voices: [
+                { id: 'en-US-natalie', name: 'Natalie', description: 'Promo, Narration, Newscast' },
+                { id: 'en-US-terrell', name: 'Terrell', description: 'Inspirational, Narration, Calm' },
+                { id: 'en-US-miles', name: 'Miles', description: 'Conversational, Promo, Sports' },
+                { id: 'en-US-ken', name: 'Ken', description: 'Conversational, Storytelling' },
+                { id: 'en-US-samantha', name: 'Samantha', description: 'Conversational, Luxury, Promo' },
+                { id: 'en-US-paul', name: 'Paul', description: 'Audiobook, Conversational' },
+                { id: 'en-US-claire', name: 'Claire', description: 'Narration, Luxury' },
+                { id: 'en-US-ryan', name: 'Ryan', description: 'Narration, Conversational, Promo' }
+            ]
+        },
+        {
+            category: '🇬🇧 English (UK)',
+            voices: [
+                { id: 'en-UK-ruby', name: 'Ruby', description: 'Conversational, Promo' },
+                { id: 'en-UK-theo', name: 'Theo', description: 'Narration, Promo, Calm' },
+                { id: 'en-UK-hazel', name: 'Hazel', description: 'Conversational' },
+                { id: 'en-UK-archie', name: 'Archie', description: 'Conversational, Promo' }
+            ]
+        },
+        {
+            category: '🇪🇸 Spanish',
+            voices: [
+                { id: 'es-ES-diego', name: 'Diego (Spain)', description: 'Conversational, Narration' },
+                { id: 'es-ES-valentina', name: 'Valentina (Spain)', description: 'Conversational, Promo' },
+                { id: 'es-MX-fernando', name: 'Fernando (Mexico)', description: 'Conversational, Promo' },
+                { id: 'es-MX-rosa', name: 'Rosa (Mexico)', description: 'Conversational, Narration' }
+            ]
+        },
+        {
+            category: '🇫🇷 French',
+            voices: [
+                { id: 'fr-FR-amelie', name: 'Amelie', description: 'Conversational, Narration' },
+                { id: 'fr-FR-antoine', name: 'Antoine', description: 'Conversational, Promo' },
+                { id: 'fr-FR-henri', name: 'Henri', description: 'Narration, Conversational' },
+                { id: 'fr-FR-louise', name: 'Louise', description: 'Conversational, Promo' }
+            ]
+        },
+        {
+            category: '🇩🇪 German',
+            voices: [
+                { id: 'de-DE-klaus', name: 'Klaus', description: 'Conversational, Narration' },
+                { id: 'de-DE-petra', name: 'Petra', description: 'Conversational, Promo' },
+                { id: 'de-DE-werner', name: 'Werner', description: 'Narration, Conversational' },
+                { id: 'de-DE-julia', name: 'Julia', description: 'Conversational, Narration' }
+            ]
+        },
+        {
+            category: '🇮🇹 Italian',
+            voices: [
+                { id: 'it-IT-alessandro', name: 'Alessandro', description: 'Conversational, Narration' },
+                { id: 'it-IT-chiara', name: 'Chiara', description: 'Conversational, Promo' },
+                { id: 'it-IT-giuseppe', name: 'Giuseppe', description: 'Narration, Conversational' },
+                { id: 'it-IT-francesca', name: 'Francesca', description: 'Conversational, Narration' }
+            ]
+        },
+        {
+            category: '🌏 Other Languages',
+            voices: [
+                { id: 'pt-BR-antonio', name: 'Antonio (Portuguese BR)', description: 'Conversational, Narration' },
+                { id: 'ru-RU-dmitri', name: 'Dmitri (Russian)', description: 'Conversational, Narration' },
+                { id: 'zh-CN-wang', name: 'Wang (Chinese)', description: 'Conversational, Narration' },
+                { id: 'ja-JP-akira', name: 'Akira (Japanese)', description: 'Conversational, Narration' },
+                { id: 'ko-KR-minho', name: 'Minho (Korean)', description: 'Conversational, Narration' },
+                { id: 'hi-IN-kalpana', name: 'Kalpana (Hindi)', description: 'Conversational, Narration' },
+                { id: 'ar-SA-omar', name: 'Omar (Arabic)', description: 'Conversational, Narration' }
+            ]
+        }
+    ];
+
+    // Create quick pick items
+    const items: vscode.QuickPickItem[] = [];
+    
+    for (const category of voiceCategories) {
+        items.push({
+            label: category.category,
+            kind: vscode.QuickPickItemKind.Separator
+        });
+        
+        for (const voice of category.voices) {
+            const currentVoice = config.get<string>('murfVoiceId');
+            const isSelected = currentVoice === voice.id;
+            
+            items.push({
+                label: `${isSelected ? '✅ ' : ''}${voice.name}`,
+                description: voice.description,
+                detail: voice.id,
+                picked: isSelected
+            });
+        }
+    }
+
+    const selectedVoice = await vscode.window.showQuickPick(items, {
+        title: '🎵 Select Voice Language & Character',
+        placeHolder: 'Choose from 150+ voices in 20+ languages',
+        matchOnDescription: true,
+        matchOnDetail: true
+    });
+
+    if (selectedVoice && selectedVoice.detail) {
+        // Update voice configuration
+        await config.update('murfVoiceId', selectedVoice.detail, vscode.ConfigurationTarget.Global);
+        
+        // Ask for voice style
+        const currentStyle = config.get<string>('voiceStyle') || 'Conversational';
+        const styleOptions = [
+            { label: '💬 Conversational', description: 'Natural, friendly tone', value: 'Conversational' },
+            { label: '📖 Narration', description: 'Clear storytelling voice', value: 'Narration' },
+            { label: '📢 Promo', description: 'Energetic promotional style', value: 'Promo' },
+            { label: '📺 Newscast', description: 'Professional news anchor style', value: 'Newscast' },
+            { label: '🧘 Calm', description: 'Relaxed, soothing tone', value: 'Calm' },
+            { label: '✨ Inspirational', description: 'Motivating, uplifting voice', value: 'Inspirational' },
+            { label: '📚 Audiobook', description: 'Perfect for long-form content', value: 'Audiobook' },
+            { label: '🎬 Documentary', description: 'Informative, educational tone', value: 'Documentary' }
+        ];
+
+        const selectedStyle = await vscode.window.showQuickPick(
+            styleOptions.map(style => ({
+                ...style,
+                picked: style.value === currentStyle
+            })),
+            {
+                title: '🎭 Select Voice Style',
+                placeHolder: 'Choose the speaking style for your voice'
+            }
+        );
+
+        if (selectedStyle) {
+            await config.update('voiceStyle', selectedStyle.value, vscode.ConfigurationTarget.Global);
+        }
+
+        const voiceName = selectedVoice.label.replace('✅ ', '');
+        const styleName = selectedStyle?.label.replace(/^\S+ /, '') || currentStyle;
+        
+        vscode.window.showInformationMessage(
+            `🎵 Voice updated to ${voiceName} (${styleName}). Try explaining some code to hear your new voice!`
+        );
     }
 }
 

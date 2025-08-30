@@ -16,6 +16,7 @@ export interface SynthesisResult {
 export class VoiceSynthesizer {
     private apiKey: string = '';
     private voiceId: string = '';
+    private voiceStyle: string = '';
 
     constructor() {
         this.updateConfig();
@@ -23,7 +24,8 @@ export class VoiceSynthesizer {
         // Listen for configuration changes
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (event.affectsConfiguration('codeVoiceExplainer.murfApiKey') || 
-                event.affectsConfiguration('codeVoiceExplainer.murfVoiceId')) {
+                event.affectsConfiguration('codeVoiceExplainer.murfVoiceId') ||
+                event.affectsConfiguration('codeVoiceExplainer.voiceStyle')) {
                 this.updateConfig();
             }
         });
@@ -33,6 +35,9 @@ export class VoiceSynthesizer {
         const config = vscode.workspace.getConfiguration('codeVoiceExplainer');
         this.apiKey = config.get<string>('murfApiKey') || '';
         this.voiceId = config.get<string>('murfVoiceId') || 'en-US-natalie';
+        this.voiceStyle = config.get<string>('voiceStyle') || 'Conversational';
+        
+        console.log(`🎵 Voice updated: ${this.voiceId} with style: ${this.voiceStyle}`);
     }
 
     async synthesizeSpeech(text: string): Promise<Buffer> {
@@ -69,13 +74,22 @@ export class VoiceSynthesizer {
 
     private async synthesizeWithMurfAITiming(text: string): Promise<SynthesisResult> {
         try {
-            // Use the correct Murf.ai API format
+            // Use the correct Murf.ai API format with voice style
+            const requestBody: any = {
+                text: text,
+                voiceId: this.voiceId
+            };
+
+            // Add voice style if configured
+            if (this.voiceStyle && this.voiceStyle !== 'Conversational') {
+                requestBody.style = this.voiceStyle;
+            }
+
+            console.log(`🎵 Murf.ai request: ${this.voiceId} (${this.voiceStyle}) - "${text.substring(0, 50)}..."`);
+
             const response = await axios.post(
                 'https://api.murf.ai/v1/speech/generate',
-                {
-                    text: text,
-                    voiceId: this.voiceId
-                },
+                requestBody,
                 {
                     headers: {
                         'api-key': this.apiKey,
