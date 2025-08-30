@@ -72,7 +72,7 @@ code .
 
 ### **Step 4: Test the Extension** 🧪
 1. Open the `demo.js` file in the new VSCode window
-2. Select the `calculateTotal` function
+2. Select the age verification logic (lines 4-16)
 3. Right-click and try all features:
    - **"Explain Selected Code with Voice"**
    - **"Ask Question About Code"** 
@@ -160,12 +160,12 @@ When you select a non-English voice:
 
 #### **Example Questions:**
 ```
- "What happens if the input is null?"
- "How can I optimize this function?"
- "Are there any security vulnerabilities?"
- "What edge cases am I missing?"
- "How does this scale with large datasets?"
- "What design patterns are used here?"
+ "What happens if age is negative?"
+ "How can I simplify these nested if statements?"
+ "Are there any edge cases I'm missing?"
+ "What's the time complexity of this logic?"
+ "How can I make this code more readable?"
+ "What design patterns could improve this?"
 ```
 
 #### **Follow-up Questions:**
